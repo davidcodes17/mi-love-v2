@@ -19,6 +19,7 @@ import {
 
 import { ToastProvider } from "@/components/lib/toast-manager";
 import { KeyboardAvoidingView, Platform, useColorScheme } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -53,26 +54,28 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : LightTheme}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
-        style={{ flex: 1}}
-      >
-        <ToastProvider
-          config={{
-            duration: 4000,
-            position: "bottom",
-            stack: true,
-          }}
+      <GestureHandlerRootView>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
+          style={{ flex: 1 }}
         >
-          <Stack>
-            <Stack.Screen name="(home)" options={{ headerShown: false }} />
-            <Stack.Screen name="(entry)" options={{ headerShown: false }} />
-            <Stack.Screen name="+not-found" />
-          </Stack>
-          <StatusBar style="auto" />
-        </ToastProvider>
-      </KeyboardAvoidingView>
+          <ToastProvider
+            config={{
+              duration: 4000,
+              position: "bottom",
+              stack: true,
+            }}
+          >
+            <Stack>
+              <Stack.Screen name="(home)" options={{ headerShown: false }} />
+              <Stack.Screen name="(entry)" options={{ headerShown: false }} />
+              <Stack.Screen name="+not-found" />
+            </Stack>
+            <StatusBar style="auto" />
+          </ToastProvider>
+        </KeyboardAvoidingView>
+      </GestureHandlerRootView>
     </ThemeProvider>
   );
 }

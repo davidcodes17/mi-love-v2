@@ -1,6 +1,11 @@
 import React, { useEffect } from "react";
 import { ScrollView, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import globalStyles from "@/components/styles/global-styles";
+import ThemedView, { ThemedText } from "@/components/ui/themed-view";
+import BackButton from "@/components/common/back-button";
+import { OtpInput } from "react-native-otp-entry";
+import NativeButton from "@/components/ui/native-button";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -8,21 +13,14 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 
-import globalStyles from "@/components/styles/global-styles";
-import ThemedView, { ThemedText } from "@/components/ui/themed-view";
-import BackButton from "@/components/common/back-button";
-import InputField from "@/components/common/input-field";
-import { Lock, Lock1 } from "iconsax-react-native";
-import NativeButton from "@/components/ui/native-button";
-
-const SetupPassword = () => {
-  const offsetY = useSharedValue(40);
+const OTP = () => {
+  const offsetY = useSharedValue(30);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
     offsetY.value = withTiming(0, {
       duration: 600,
-      easing: Easing.out(Easing.exp),
+      easing: Easing.out(Easing.ease),
     });
     opacity.value = withTiming(1, { duration: 600 });
   }, []);
@@ -37,23 +35,21 @@ const SetupPassword = () => {
       <ScrollView>
         <Animated.View style={[animatedStyle]}>
           <ThemedView padding={20}>
-            <BackButton />
-            <ThemedText marginTop={20} fontSize={30}>
-              Security Setup
-            </ThemedText>
-            <ThemedText marginTop={7}>
-              Create an account by filling out the form below.
-            </ThemedText>
+            <ThemedView marginBottom={20}>
+              <BackButton />
+              <ThemedText marginTop={20} fontSize={30}>
+                Verify your email
+              </ThemedText>
+              <ThemedText marginTop={7}>
+                We just sent an email to you with a verification code. Please
+                enter the code below to verify your email address.
+              </ThemedText>
+            </ThemedView>
 
-            <InputField
-              icon={<Lock color="#ddd" size={20} />}
-              placeholder="Shhh! Keep it secret"
-              label="Password"
-            />
-            <InputField
-              icon={<Lock1 color="#ddd" size={20} />}
-              placeholder="* * * * * * * * * * * * * * * * * * * * * * *"
-              label="Are you sure? Let's see"
+            <OtpInput
+              numberOfDigits={4}
+              blurOnFilled={true}
+              onTextChange={(text: any) => console.log(text)}
             />
 
             <ThemedView
@@ -63,10 +59,12 @@ const SetupPassword = () => {
               marginTop={20}
             >
               <NativeButton
-                href={"/auth/otp"}
+                href={"/auth/panic-setup"}
                 text={"Next"}
                 mode="fill"
-                style={{ borderRadius: 100 }}
+                style={{
+                  borderRadius: 100,
+                }}
               />
             </ThemedView>
           </ThemedView>
@@ -76,6 +74,6 @@ const SetupPassword = () => {
   );
 };
 
-export default SetupPassword;
+export default OTP;
 
 const styles = StyleSheet.create({});

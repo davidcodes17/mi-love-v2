@@ -8,11 +8,11 @@ const BottomNav = ({ state, descriptors, navigation }: BottomTabBarProps) => {
   const { bottom } = useSafeAreaInsets();
   const pathname = usePathname();
   const arranged = [];
-  arranged.push(state.routes[0]);
   arranged.push(state.routes[1]);
-  arranged.push(state.routes[4]);
-  arranged.push(state.routes[2]);
   arranged.push(state.routes[3]);
+  arranged.push(state.routes[0]);
+  arranged.push(state.routes[2]);
+  arranged.push(state.routes[4]);
 
   
 

@@ -4,7 +4,7 @@ import { View } from "react-native";
 import NativeText from "./native-text";
 
 const TabIcon = ({ route, isFocused }: Props) => {
-  const isCenter = route.includes("checklist");
+  const isCenter = route.includes("add");
 
   const renderIcon = (route: string, isFocused: boolean) => {
     const size = 25;
@@ -13,17 +13,17 @@ const TabIcon = ({ route, isFocused }: Props) => {
       case "home":
         return <Icon.Home size={size} color={color} />;
 
-      case "event":
-        return <Icon.Calendar size={size} color={color} />;
+      case "friends":
+        return <Icon.Profile2User size={size} color={color} />;
 
-      case "checklist":
-        return <Icon.Shop size={size} color={color} />;
+      case "add":
+        return <Icon.Add size={size} color={color} />;
 
       case "inbox":
         return <Icon.Message size={size} color={color} />;
 
       case "profile":
-        return <Icon.User size={size} color={color} />;
+        return <Icon.Setting size={size} color={color} />;
     }
   };
 
@@ -53,6 +53,7 @@ const TabIcon = ({ route, isFocused }: Props) => {
         <NativeText
           style={{
             color: isFocused ? COLORS.primary : "#99A49B",
+            textTransform : "capitalize"
           }}
         >
           {route}
