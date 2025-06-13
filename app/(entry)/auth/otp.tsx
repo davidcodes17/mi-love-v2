@@ -49,6 +49,7 @@ const OTP = () => {
             <OtpInput
               numberOfDigits={4}
               blurOnFilled={true}
+              secureTextEntry
               onTextChange={(text: any) => console.log(text)}
             />
 
