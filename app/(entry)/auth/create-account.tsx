@@ -1,81 +1,94 @@
-import React, { useEffect } from "react";
-import { ScrollView, StyleSheet } from "react-native";
+import React, { useState } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import globalStyles from "@/components/styles/global-styles";
-import ThemedView, { ThemedText } from "@/components/ui/themed-view";
-import BackButton from "@/components/common/back-button";
-import InputField from "@/components/common/input-field";
-import { Profile, Sms, TickCircle } from "iconsax-react-native";
-import NativeButton from "@/components/ui/native-button";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  Easing,
-} from "react-native-reanimated";
+import Step1 from "@/components/modules/create-account/step-1";
+import Step2 from "@/components/modules/create-account/step-2";
+import Step3 from "@/components/modules/create-account/step-3";
+import Step4 from "@/components/modules/create-account/step-4";
+import Step5 from "@/components/modules/create-account/step-5";
+import Step6 from "@/components/modules/create-account/step-6";
+import Step7 from "@/components/modules/create-account/step-7";
+import { useFormik } from "formik";
+import authShema from "@/schema/auth";
+import ThankYou from "./thank-you";
+import { ThemedText } from "@/components/ui/themed-view";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import Step8 from "@/components/modules/create-account/step-8";
+import Step9 from "@/components/modules/create-account/step-9";
+import Step10 from "@/components/modules/create-account/step-10";
+
+const steps = [Step1, Step2, Step3, Step4, Step5, Step6, Step7, Step8, Step9, Step10];
+const stepLabels = [
+  "Email",
+  "OTP",
+  "Profile",
+  "Interests",
+  "Emergency",
+  "Password",
+  "Know You More",
+  "Where You Are",
+  "Who are you",
+  "Thank You",
+];
+
+const initialValues = {
+  email: "",
+  otp: "",
+  fullName: "",
+  username: "",
+  dob: "",
+  country: "",
+  phonenumber: "",
+  interests: [],
+  emergencyContact: "",
+  password: "",
+  confirmPassword: "",
+  gender: "",
+  bio: "",
+  profileImage: "",
+  home_address: "",
+};
+
+const accent = "#7B61FF";
+const accentGradient = ["#7B61FF", "#A084FF"];
 
 const CreateAccount = () => {
-  const offsetY = useSharedValue(30);
-  const opacity = useSharedValue(0);
+  const [step, setStep] = useState(8);
+  const StepComponent = steps[step];
 
-  useEffect(() => {
-    offsetY.value = withTiming(0, { duration: 600, easing: Easing.out(Easing.ease) });
-    opacity.value = withTiming(1, { duration: 600 });
-  }, []);
+  const formik = useFormik({
+    initialValues,
+    validationSchema: authShema[step],
+    validateOnChange: true,
+    validateOnBlur: true,
+    onSubmit: () => {
+      setStep((s) => Math.min(s + 1, steps.length - 1));
+    },
+  });
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: offsetY.value }],
-    opacity: opacity.value,
-  }));
+  const back = () => setStep((s) => Math.max(s - 1, 0));
 
   return (
-    <SafeAreaView style={globalStyles.wrapper}>
-      <ScrollView>
-        <Animated.View style={[animatedStyle]}>
-          <ThemedView padding={20}>
-            <ThemedView>
-              <BackButton />
-              <ThemedText marginTop={20} fontSize={30}>
-                Let's create a new account
-              </ThemedText>
-              <ThemedText marginTop={7}>
-                Create an account by filling out the form below.
-              </ThemedText>
-            </ThemedView>
-
-            <InputField
-              icon={<Profile color="#ddd" size={20} />}
-              placeholder="Your Full Name"
-              label="Full Name"
-            />
-            <InputField
-              icon={<TickCircle color="#ddd" size={20} />}
-              placeholder="Your Username"
-              label="Username"
-            />
-
-            <ThemedView
-              width={"30%"}
-              justifyContent="flex-end"
-              alignSelf="flex-end"
-              marginTop={20}
-            >
-              <NativeButton
-                href={"/auth/create-account2"}
-                text={"Next"}
-                mode="fill"
-                style={{
-                  borderRadius: 100,
-                }}
-              />
-            </ThemedView>
-          </ThemedView>
-        </Animated.View>
-      </ScrollView>
+    <SafeAreaView style={{ flex: 1 }}>
+      <View style={{ padding: 20 }}>
+        <StepComponent
+          values={formik.values}
+          errors={formik.errors}
+          touched={formik.touched}
+          handleChange={(field) => (value) =>
+            formik.setFieldValue(field, value)}
+          handleBlur={formik.handleBlur}
+          onNext={formik.handleSubmit}
+          onBack={back}
+          isLast={step === steps.length - 1}
+          isFirst={step === 0}
+        />
+      </View>
     </SafeAreaView>
   );
 };
 
 export default CreateAccount;
-
 const styles = StyleSheet.create({});

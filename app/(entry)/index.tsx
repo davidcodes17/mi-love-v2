@@ -103,7 +103,7 @@ const Onboarding = () => {
             >
               <NativeButton href={"/auth/login"} style={{ width: "40%" , borderRadius : 100}} text={"Login"} mode="fill" />
               <NativeButton
-              href={"/auth/create-account"}
+                href={"/auth/create-account"}
                 style={{ width: "40%", borderRadius : 100 }}
                 text={"Create Account"}
                 mode="outline"
