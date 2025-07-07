@@ -1,5 +1,5 @@
 import apiSecured from "@/security/api-secured";
-import { LoginPayLoad } from "@/types/auth.types";
+import { LoginPayLoad, UserProfile } from "@/types/auth.types";
 
 export const loginService = async ({ data }: { data: LoginPayLoad }) => {
   try {
@@ -10,10 +10,18 @@ export const loginService = async ({ data }: { data: LoginPayLoad }) => {
     return error?.response?.data?.error;
   }
 };
-export const sendOtp = async ({ email }: { email: string }) => {
+export const uploadService = async ({ file }: { file: any }) => {
   try {
-    const response = await apiSecured.post("/auth/send-otp", {
-        email : email
+    const formData = new FormData();
+    formData.append("files", {
+      uri: file.uri,
+      name: file.name || "photo.jpg",
+      type: file.type || "image/jpeg",
+    } as any);
+    const response = await apiSecured.post("/upload", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
     });
     return response.data;
   } catch (error: any) {
@@ -21,12 +29,49 @@ export const sendOtp = async ({ email }: { email: string }) => {
     return error?.response?.data?.error;
   }
 };
-export const verifyOtp = async ({ email,otp }: { email: string,otp : string }) => {
+export const sendOtp = async ({
+  email,
+  exsists,
+}: {
+  email: string;
+  exsists: boolean;
+}) => {
+  try {
+    const response = await apiSecured.post("/auth/send-otp", {
+      email: email,
+      check_exists: exsists,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.log(error);
+    return error?.response?.data?.error;
+  }
+};
+export const verifyOtp = async ({
+  email,
+  otp,
+  type,
+}: {
+  email: string;
+  otp: string;
+  type: "verify" | "reset";
+}) => {
   try {
     const response = await apiSecured.post("/auth/verify-otp", {
-        email : email,
-        otp : otp
+      email: email,
+      otp: otp,
+      type: type,
     });
+    return response.data;
+  } catch (error: any) {
+    console.log(error);
+    return error?.response?.data?.error;
+  }
+};
+
+export const createAccountService = async ({ data }: { data: UserProfile }) => {
+  try {
+    const response = await apiSecured.post("/auth/signup", data);
     return response.data;
   } catch (error: any) {
     console.log(error);

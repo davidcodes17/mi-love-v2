@@ -6,6 +6,7 @@ import AppleOTPInput from "@/components/common/apple-otp-input";
 import NativeButton from "@/components/ui/native-button";
 import { useSendOtp, useVerifyOtp } from "@/hooks/auth-hooks.hooks";
 import toast from "@originaltimi/rn-toast";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface Step2Props {
   values: any;
@@ -51,7 +52,10 @@ const Step2 = ({
   const handleResend = async () => {
     try {
       setResendLoading(true);
-      const response = await useSendOtp({ email: values.email });
+      const response = await useSendOtp({
+        email: values.email,
+        exsists: false,
+      });
 
       if (response?.message) {
         toast({
@@ -86,17 +90,20 @@ const Step2 = ({
       const response = await useVerifyOtp({
         email: values?.email,
         otp: values?.otp,
+        type: "verify",
       });
 
       Keyboard.dismiss();
 
-      if (response?.id) {
+      if (response?.token) {
         toast({
           title: "Email Verified Successfully",
           type: "success",
           position: "bottom",
           duration: 2000,
         });
+
+        await AsyncStorage.setItem("token", response?.token);
 
         onNext();
       } else {

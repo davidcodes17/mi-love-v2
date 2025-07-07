@@ -33,7 +33,7 @@ const Step1 = ({
   const [loading, setLoading] = useState<boolean>(false);
   const handleNext = async () => {
     setLoading(true);
-    const response = await useSendOtp({ email: values.email });
+    const response = await useSendOtp({ email: values.email, exsists : false });
     console.log(response);
     if (response?.message) {
       setLoading(false);

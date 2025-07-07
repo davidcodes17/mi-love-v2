@@ -19,6 +19,7 @@ import { ValidationError } from "yup";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import toast from "@originaltimi/rn-toast";
+import { Link } from "expo-router";
 
 const loginSchema = Yup.object({
   email: Yup.string().email("Invalid email").required("Email is required"),
@@ -127,9 +128,11 @@ const LoginScreen = () => {
             onChangeText={(e) => setData((prev) => ({ ...prev, password: e }))}
           />
 
-          <ThemedText textAlign="right" weight="semibold" marginTop={10}>
-            Forgotten Password?
-          </ThemedText>
+          <Link style={{marginTop : 20}} href={"/auth/forgot-password"}>
+            <ThemedText textAlign="right" fontSize={18} weight="semibold" marginTop={10}>
+              Forgotten Password?
+            </ThemedText>
+          </Link>
 
           <NativeButton
             text={loading ? "Logging in..." : "Login"}
@@ -143,9 +146,11 @@ const LoginScreen = () => {
             Or
           </ThemedText>
 
-          <TouchableOpacity onPress={()=>{
-            router.push("/home")
-          }}>
+          <TouchableOpacity
+            onPress={() => {
+              router.push("/home");
+            }}
+          >
             <ThemedView
               flexDirection="row"
               justifyContent="center"

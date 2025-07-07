@@ -19,7 +19,7 @@ const FriendCompo = ({ isFriend }: { isFriend: boolean }) => {
         <Image
           source={
             imageError
-              ? require("../../assets/users.jpg") // 🛑 make sure this path is correct
+              ? require("@/assets/users.jpg")
               : {
                   uri: "https://cdn.dribbble.com/userupload/36974838/file/original-c2508a14d3725cbfa022122d6ada6015.jpg?resize=752x&vertical=center",
                 }

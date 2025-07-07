@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { ScrollView, StyleSheet } from "react-native";
+import { Dimensions, ScrollView, StyleSheet } from "react-native";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import NativeButton from "@/components/ui/native-button";
 import { TickCircle } from "iconsax-react-native";
@@ -27,20 +27,21 @@ const Step10 = ({
   isFirst,
   isLast,
 }: Step10Props) => {
-  console.log("object",values)
+  console.log("object", values);
 
-  useEffect(()=>{
-    console.log("Login THIS")
-  },[])
-  
+  useEffect(() => {
+    console.log("Login THIS");
+  }, []);
+
+  const height = Dimensions.get("window").height;
+
   return (
-    <ScrollView 
-      // style={{ flex: 1 }}
-      showsVerticalScrollIndicator={false}
-      // contentContainerStyle={{ paddingBottom: 40, flexGrow: 1 }}
-      keyboardShouldPersistTaps="handled"
+    <ScrollView
+      style={{
+        height,
+      }}
     >
-      <ThemedView 
+      <ThemedView
         flex={1}
         alignItems="center"
         justifyContent="center"
@@ -48,7 +49,7 @@ const Step10 = ({
         minHeight={600}
       >
         {/* Success Icon */}
-        <ThemedView 
+        <ThemedView
           alignItems="center"
           justifyContent="center"
           marginBottom={20}
@@ -57,7 +58,12 @@ const Step10 = ({
         </ThemedView>
 
         {/* Main Title */}
-        <ThemedText fontSize={34} weight="bold" textAlign="center" marginTop={20}>
+        <ThemedText
+          fontSize={34}
+          weight="bold"
+          textAlign="center"
+          marginTop={20}
+        >
           🎉 Thank You!
         </ThemedText>
 
@@ -80,15 +86,12 @@ const Step10 = ({
           textAlign="center"
           lineHeight={22}
         >
-          Welcome to our community! Your profile is now ready and you can start connecting with others.
+          Welcome to our community! Your profile is now ready and you can start
+          connecting with others.
         </ThemedText>
 
         {/* Action Buttons */}
-        <ThemedView 
-          width="100%"
-          marginTop={40}
-          paddingHorizontal={20}
-        >
+        <ThemedView width="100%" marginTop={40} paddingHorizontal={20}>
           <NativeButton
             href="/home"
             text="Go to Home"
@@ -101,4 +104,4 @@ const Step10 = ({
   );
 };
 
-export default Step10; 
+export default Step10;

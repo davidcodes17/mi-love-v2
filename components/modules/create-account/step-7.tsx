@@ -21,6 +21,8 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 import { COLORS } from "@/config/theme";
+import { useUploadService } from "@/hooks/auth-hooks.hooks";
+import toast from "@originaltimi/rn-toast";
 
 interface Step7Props {
   values: any;
@@ -46,6 +48,7 @@ const Step7 = ({
   isLast,
 }: Step7Props) => {
   const [localImage, setLocalImage] = useState(values.profileImage || null);
+  const [loading, setLoading] = useState<boolean>(false);
 
   // Bottom sheet refs
   const genderBottomSheetRef = useRef<BottomSheetModal>(null);
@@ -86,7 +89,7 @@ const Step7 = ({
     });
     if (!result.canceled && result.assets && result.assets.length > 0) {
       setLocalImage(result.assets[0].uri);
-      handleChange("profileImage")(result.assets[0].uri);
+      // handleChange("profileImage")(result.assets[0].uri);
     }
     imageBottomSheetRef.current?.dismiss();
   };
@@ -105,6 +108,47 @@ const Step7 = ({
     genderBottomSheetRef.current?.dismiss();
   };
   const height = Dimensions.get("window").height;
+
+  const uploadImage = async () => {
+    if (!localImage) {
+      toast({
+        title: "Please select an image first.",
+        duration: 2000,
+        type: "error",
+      });
+      return;
+    }
+
+    setLoading(true);
+    // Prepare file object for upload
+    const file = {
+      uri: localImage,
+      name: "profile.jpg",
+      type: "image/jpeg",
+    };
+    try {
+      const response = await useUploadService({ file });
+      console.log("Upload response:", response);
+      toast({
+        title: "Image uploaded successfully!",
+        duration: 2000,
+        type: "success",
+      });
+      // This ID
+      console.log(response?.data[0]?.id, "SJSJ");
+      handleChange("profileImage")(response?.data[0]?.id);
+      setLoading(false);
+    } catch (error) {
+      setLoading(false);
+      console.log("Upload error:", error);
+      toast({
+        title: "Image upload failed.",
+        duration: 2000,
+        type: "error",
+      });
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -128,7 +172,7 @@ const Step7 = ({
           <ThemedView alignItems="center" marginTop={20} marginBottom={10}>
             <TouchableOpacity
               onPress={handleImagePresentModalPress}
-              style={{ alignItems: "center" }}
+              style={{ alignItems: "center", width: "100%" }}
             >
               <Image
                 source={
@@ -137,12 +181,11 @@ const Step7 = ({
                     : require("@/assets/user.png")
                 }
                 style={{
-                  width: 90,
-                  height: 90,
-                  borderRadius: 45,
-                  borderWidth: 2,
-                  borderColor: "#ddd",
+                  width: "100%",
+                  height: 300,
+                  borderRadius: 10,
                 }}
+                resizeMode="cover"
               />
               <ThemedText
                 fontSize={14}
@@ -153,6 +196,14 @@ const Step7 = ({
                 {localImage ? "Change Photo" : "Upload Photo"}
               </ThemedText>
             </TouchableOpacity>
+            {/* Upload Button */}
+            <NativeButton
+              text="Upload"
+              onPress={uploadImage}
+              isLoading={loading}
+              style={{ marginTop: 10, width: 150, borderRadius: 80 }}
+              mode="outline"
+            />
           </ThemedView>
 
           {/* Gender Picker */}
@@ -214,8 +265,6 @@ const Step7 = ({
             )}
           </ThemedView>
 
-    
-
           <ThemedView
             marginBottom={20}
             width={"40%"}
@@ -224,7 +273,10 @@ const Step7 = ({
             marginTop={20}
           >
             <NativeButton
-              onPress={onNext}
+              onPress={() => {
+                console.log(values, "SK");
+                onNext();
+              }}
               text={isLast ? "Submit" : "Next"}
               mode="fill"
               style={{ borderRadius: 100 }}

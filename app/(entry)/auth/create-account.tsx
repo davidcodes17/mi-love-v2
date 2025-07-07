@@ -55,7 +55,7 @@ const accent = "#7B61FF";
 const accentGradient = ["#7B61FF", "#A084FF"];
 
 const CreateAccount = () => {
-  const [step, setStep] = useState(8);
+  const [step, setStep] = useState(0);
   const StepComponent = steps[step];
 
   const formik = useFormik({
