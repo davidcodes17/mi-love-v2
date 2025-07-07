@@ -20,3 +20,9 @@ export interface UserProfile {
   gender: "male" | "female" | string;
   date_of_birth: string;
 }
+
+export interface ResetPayload {
+  token: string;
+  password: string;
+  otp: string;
+}

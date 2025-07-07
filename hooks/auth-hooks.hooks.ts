@@ -1,14 +1,19 @@
 import {
   createAccountService,
   loginService,
+  resetPasswordService,
   sendOtp,
   uploadService,
   verifyOtp,
 } from "@/services/auth-service.service";
-import { LoginPayLoad, UserProfile } from "@/types/auth.types";
+import { LoginPayLoad, ResetPayload, UserProfile } from "@/types/auth.types";
 
 export const loginServiceProxy = async ({ data }: { data: LoginPayLoad }) => {
   const response = await loginService({ data });
+  return response;
+};
+export const useResetPasswordService = async ({ data }: { data: ResetPayload }) => {
+  const response = await resetPasswordService({ data });
   return response;
 };
 export const useCreateAccountService = async ({ data }: { data: UserProfile }) => {

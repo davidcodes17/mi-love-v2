@@ -1,5 +1,5 @@
 import apiSecured from "@/security/api-secured";
-import { LoginPayLoad, UserProfile } from "@/types/auth.types";
+import { LoginPayLoad, ResetPayload, UserProfile } from "@/types/auth.types";
 
 export const loginService = async ({ data }: { data: LoginPayLoad }) => {
   try {
@@ -72,6 +72,16 @@ export const verifyOtp = async ({
 export const createAccountService = async ({ data }: { data: UserProfile }) => {
   try {
     const response = await apiSecured.post("/auth/signup", data);
+    return response.data;
+  } catch (error: any) {
+    console.log(error);
+    return error?.response?.data?.error;
+  }
+};
+
+export const resetPasswordService = async ({ data }: { data: ResetPayload }) => {
+  try {
+    const response = await apiSecured.post("/auth/reset-password", data);
     return response.data;
   } catch (error: any) {
     console.log(error);
