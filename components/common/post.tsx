@@ -1,28 +1,92 @@
-import { Image, StyleSheet, Text, TouchableOpacity } from "react-native";
-import React, { useState } from "react";
+import {
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  ImageSourcePropType,
+} from "react-native";
+import React, { useEffect, useState } from "react";
 import ThemedView, { ThemedText } from "../ui/themed-view";
 import { COLORS } from "@/config/theme";
 import { Heart } from "iconsax-react-native";
+import { PostProps } from "@/types/post.types";
+import { generateURL } from "@/utils/image-utils.utils";
+import { useGetProfile } from "@/hooks/auth-hooks.hooks";
+import { useUserProfileStore } from "@/hooks/auth-hooks.hooks";
+import {
+  useLikePost,
+  useUnlikePost,
+  useGetAllLikes,
+} from "@/hooks/post-hooks.hooks";
 
-const Post = () => {
+const Post: React.FC<PostProps> = ({ post }) => {
   const [expanded, setExpanded] = useState(false);
+  const [mainImageLoading, setMainImageLoading] = useState(true);
+  const [profileImageLoading, setProfileImageLoading] = useState(true);
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
   const toggleExpanded = () => setExpanded(!expanded);
+  const setProfile = useUserProfileStore((state) => state.setProfile);
+  const profile = useUserProfileStore((state) => state.profile);
 
-  const fullText =
-    "Lorem ipsum dolor sit amet consectetur adipisicing elit. Autem ullam molestias ducimus voluptate necessitatibus iure aperiam veniam quidem nihil inventore.";
-  const shortText = fullText.slice(0, 70) + "...";
+  const shortText =
+    post?.content.length > 70
+      ? post?.content.slice(0, 70) + "..."
+      : post?.content;
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const profile = await useGetProfile();
+        if (profile) setProfile(profile);
+      } catch (e) {
+        // handle error if needed
+      }
+    };
+    fetchProfile();
+  }, [setProfile]);
+
+  useEffect(() => {
+    const fetchLikes = async () => {
+      const response = await useGetAllLikes({ id: post.id });
+      setLikeCount(response?.data?.length || 0);
+      
+      // Check if current user has already liked this post
+      if (response?.data && profile?.id) {
+        const userLiked = response.data.some((like: any) => like.userId === profile.id);
+        setLiked(userLiked);
+      }
+    };
+    fetchLikes();
+  }, [post.id, profile?.id]);
+
+  const handleLike = async () => {
+    if (liked) {
+      await useUnlikePost({ id: post.id });
+      setLiked(false);
+      setLikeCount((c) => c - 1);
+    } else {
+      await useLikePost({ id: post.id });
+      setLiked(true);
+      setLikeCount((c) => c + 1);
+    }
+  };
 
   return (
-    <ThemedView position="relative">
+    <ThemedView position="relative" marginBottom={20}>
       <Image
-        source={{
-          uri: "https://img.freepik.com/free-photo/young-beautiful-girl-posing-black-leather-jacket-park_1153-8104.jpg?semt=ais_hybrid&w=740",
-        }}
+        source={
+          mainImageLoading
+            ? require("@/assets/user.png")
+            : { uri: generateURL({ url: post?.files[0]?.url }) }
+        }
         style={{
           width: "100%",
           height: 400,
           borderRadius: 20,
         }}
+        onLoadEnd={() => setMainImageLoading(false)}
+        resizeMode="cover"
       />
 
       <ThemedView
@@ -46,50 +110,78 @@ const Post = () => {
             marginBottom={5}
           >
             <Image
-              source={{
-                uri: "https://img.freepik.com/free-photo/young-beautiful-girl-posing-black-leather-jacket-park_1153-8104.jpg?semt=ais_hybrid&w=740",
-              }}
+              source={
+                profileImageLoading
+                  ? require("@/assets/user.png")
+                  : {
+                      uri: generateURL({
+                        url: post?.user?.profile_picture?.url,
+                      }),
+                    }
+              }
               style={{
                 width: 50,
                 height: 50,
                 borderRadius: 200,
               }}
+              onLoadEnd={() => setProfileImageLoading(false)}
+              resizeMode="cover"
             />
             <ThemedView>
               <ThemedText fontSize={15} weight="bold" color={"#fff"}>
-                Nathan Rusi
+                {`${post?.user?.first_name} ${post?.user?.last_name}`}
               </ThemedText>
               <ThemedText weight="light" color={"#fff"}>
-                @nathanrusi
+                @{post?.user?.username}
               </ThemedText>
             </ThemedView>
           </ThemedView>
 
           <ThemedView flexDirection="row" alignItems="center" gap={10}>
-            <ThemedText
-              backgroundColor={COLORS.primary}
-              color={"#fff"}
-              padding={7.5}
-              borderRadius={200}
-              fontSize={12}
-              paddingHorizontal={15}
+            <TouchableOpacity
+            //  onPress={onAddFriend} disabled={!onAddFriend}
             >
-              Add Friend
-            </ThemedText>
-            <ThemedView borderColor={"#fff"} borderWidth={0.5} padding={5} borderRadius={200}>
-              <Heart size={18} color="#fff" />
-            </ThemedView>
+              <ThemedText
+                backgroundColor={COLORS.primary}
+                color={"#fff"}
+                padding={7.5}
+                borderRadius={200}
+                fontSize={12}
+                paddingHorizontal={15}
+              >
+                Add Friend
+              </ThemedText>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleLike}>
+              <ThemedView
+                borderColor={liked ? COLORS.primary : "#fff"}
+                borderWidth={0.5}
+                padding={5}
+                borderRadius={200}
+                flexDirection="row"
+                alignItems="center"
+                gap={5}
+              >
+                <Heart
+                  size={18}
+                  color={liked ? COLORS.primary : "#fff"}
+                  variant={liked ? "Bold" : undefined}
+                />
+              </ThemedView>
+            </TouchableOpacity>
           </ThemedView>
         </ThemedView>
 
         <ThemedView paddingBottom={10} alignItems="center">
           <ThemedText fontSize={12} color={"#fff"} flexWrap={"wrap"}>
-            {expanded ? fullText : shortText}{" "}
-            <TouchableOpacity onPress={toggleExpanded}>
-              <ThemedText color={COLORS.primary} fontSize={12}>
-                {expanded ? "Less" : "More"}
-              </ThemedText>
-            </TouchableOpacity>
+            {expanded ? post?.content : shortText}{" "}
+            {post?.content.length > 70 && (
+              <TouchableOpacity onPress={toggleExpanded}>
+                <ThemedText color={COLORS.primary} fontSize={12}>
+                  {expanded ? "Less" : "More"}
+                </ThemedText>
+              </TouchableOpacity>
+            )}
           </ThemedText>
         </ThemedView>
       </ThemedView>

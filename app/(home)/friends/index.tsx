@@ -29,31 +29,9 @@ export default function Page() {
             <ThemedText textAlign="center" fontSize={20}>
               Friends
             </ThemedText>
-          </ThemedView>
+          </ThemedView> 
         )}
       />
-      {/* <ThemedView
-            flexDirection="row"
-            alignItems="center"
-            justifyContent="space-between"
-            marginBottom={20}
-          >
-            <ThemedView
-              borderStyle="dotted"
-              borderColor={COLORS.primary}
-              width={"30%"}
-              borderWidth={1}
-              height={1}
-            />
-            <ThemedText>Find More Friends</ThemedText>
-            <ThemedView
-              borderStyle="dotted"
-              borderColor={COLORS.primary}
-              width={"30%"}
-              borderWidth={1}
-              height={1}
-            />
-          </ThemedView> */}
     </SafeAreaView>
   );
 }

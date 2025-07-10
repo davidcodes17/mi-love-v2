@@ -9,8 +9,46 @@ import { ScrollView } from "react-native";
 import { Image, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Href, Link } from "expo-router";
+import { useGetProfile, useUserProfileStore } from "@/hooks/auth-hooks.hooks";
+import { generateURL } from "@/utils/image-utils.utils";
+import { useEffect, useState } from "react";
+import { UserProfileR } from "@/types/auth.types";
+import ProfileImageGrid from "@/components/common/profile-image-grid";
+import { useGetAllPosts } from "@/hooks/post-hooks.hooks";
+import { Post } from "@/types/post.types";
 
 export default function ProfileScreen() {
+  const [profile, setUser] = useState<UserProfileR>(null!);
+  const [posts, setPosts] = useState<Post[]>([]);
+
+  const fetchMe = async () => {
+    const response = await useGetProfile();
+    console.log(response);
+    setUser(response?.data);
+  };
+
+  useEffect(() => {
+    fetchMe();
+    console.log("SJSJ");
+  }, []);
+
+  useEffect(() => {
+    const fetchUserPosts = async () => {
+      if (profile) {
+        const response = await useGetAllPosts({
+          data: {
+            filterBy: "",
+            filterValue: "",
+            limit: "100",
+            page: "1",
+          },
+        });
+        setPosts(response?.posts || []);
+      }
+    };
+    fetchUserPosts();
+  }, [profile]);
+
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <ScrollView
@@ -24,7 +62,7 @@ export default function ProfileScreen() {
           justifyContent="space-between"
         >
           <BackButton />
-          <ThemedText weight="bold">areegbedavid</ThemedText>
+          <ThemedText weight="bold">{profile?.username || "-"}</ThemedText>
           <ThemedView>
             <More variant="Outline" color="#000" size={30} />
           </ThemedView>
@@ -36,9 +74,11 @@ export default function ProfileScreen() {
             marginTop={20}
           >
             <Image
-              source={{
-                uri: "https://images.unsplash.com/photo-1557296387-5358ad7997bb?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8ZmFjZSUyMHdvbWFufGVufDB8fDB8fHww",
-              }}
+              source={
+                profile?.profile_picture?.url
+                  ? { uri: generateURL({ url: profile.profile_picture.url }) }
+                  : require("@/assets/user.png")
+              }
               style={{
                 width: 100,
                 height: 100,
@@ -53,7 +93,7 @@ export default function ProfileScreen() {
               textAlign="center"
               marginTop={10}
             >
-              Areegbe David
+              {profile ? `${profile.first_name} ${profile.last_name}` : "-"}
             </ThemedText>
             <ThemedText
               fontSize={12}
@@ -61,8 +101,7 @@ export default function ProfileScreen() {
               paddingHorizontal={20}
               paddingVertical={5}
             >
-              Lorem ipsum, dolor sit amet consectetur adipisicing elit. Id natus
-              expedita harum
+              {profile?.bio || "No bio set."}
             </ThemedText>
 
             <ThemedView
@@ -118,58 +157,10 @@ export default function ProfileScreen() {
             </ThemedView>
 
             {/* A good grid view of images 2 per row */}
-            <ThemedView
-              flexDirection="row"
-              flexWrap="wrap"
-              justifyContent="space-between"
-              marginTop={20}
-            >
-              {[
-                {
-                  uri: "https://www.vie-aesthetics.com/wp-content/uploads/2021/09/shutterstock_1877631178-600x600.jpg",
-                },
-                {
-                  uri: "https://www.shutterstock.com/image-photo/beautiful-closeup-portrait-latina-woman-600nw-2522123873.jpg",
-                },
-                {
-                  uri: "https://vivre.cc/wp-content/uploads/2023/04/ansikte-.jpg",
-                },
-                {
-                  uri: "https://media.gettyimages.com/id/1309405076/photo/beauty-portrait-of-young-woman.jpg?s=612x612&w=gi&k=20&c=9x4kq6gojpC0geUtyJyWLJnl4QutuqReHGeVmQC2U_s=",
-                },
-              ].map((img, idx) => (
-                <Link href={`/(home)/view-friend/${idx}` as Href} asChild key={idx}>
-                  <View
-                    style={{
-                      width: "48%",
-                      aspectRatio: 1,
-                      marginBottom: 12,
-                      borderRadius: 12,
-                      overflow: "hidden",
-                      backgroundColor: "#eee",
-                      position: "relative",
-                    }}
-                  >
-                    <Image
-                      source={{ uri: img.uri }}
-                      style={{ width: "100%", height: "100%" }}
-                      resizeMode="cover"
-                    />
-                    <ThemedView
-                      position="absolute"
-                      flexDirection="row"
-                      left={20}
-                      bottom={10}
-                      alignItems="center"
-                      gap={2}
-                    >
-                      <ThemedText color={"#fff"} fontSize={20}>4</ThemedText>
-                      <Heart color={"white"} variant="Bold" size={20} />
-                    </ThemedView>
-                  </View>
-                </Link>
-              ))}
-            </ThemedView>
+            <ProfileImageGrid
+              posts={posts}
+              linkBase="/(home)/view-friend"
+            />
           </ThemedView>
         </ThemedView>
       </ScrollView>

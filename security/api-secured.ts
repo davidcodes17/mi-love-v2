@@ -18,7 +18,7 @@ const apiSecured = axios.create({
 apiSecured.interceptors.request.use(
   async (config) => {
     // You can add authentication token here
-    const token = await AsyncStorage.getItem('authToken')
+    const token = await AsyncStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }

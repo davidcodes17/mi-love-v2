@@ -10,6 +10,15 @@ export const loginService = async ({ data }: { data: LoginPayLoad }) => {
     return error?.response?.data?.error;
   }
 };
+export const getProfile = async () => {
+  try {
+    const response = await apiSecured.get("/profile/me");
+    return response.data;
+  } catch (error: any) {
+    console.log(error);
+    return error?.response?.data?.error;
+  }
+};
 export const uploadService = async ({ file }: { file: any }) => {
   try {
     const formData = new FormData();
