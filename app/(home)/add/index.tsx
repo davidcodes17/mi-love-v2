@@ -71,36 +71,40 @@ export default function Page() {
 
   const handlePost = async () => {
     if (!content.trim()) {
-      toast({ 
-        title: "Post content cannot be empty. Please write something before posting.",
-        type: "error" 
+      toast({
+        title:
+          "Post content cannot be empty. Please write something before posting.",
+        type: "error",
       });
       return;
     }
-    
+
     if (images.length === 0) {
-      toast({ 
-        title: "No images selected. Please add at least one image to your post.",
-        type: "error" 
+      toast({
+        title:
+          "No images selected. Please add at least one image to your post.",
+        type: "error",
       });
       return;
     }
 
     setLoading(true);
     let ids = fileIds;
-    
+
     try {
       if (images.length && fileIds.length !== images.length) {
-        toast({ 
-          title: `Uploading ${images.length} image${images.length > 1 ? 's' : ''}...`,
-          type: "info" 
+        toast({
+          title: `Uploading ${images.length} image${
+            images.length > 1 ? "s" : ""
+          }...`,
+          type: "info",
         });
         ids = await uploadImages();
       }
 
-      toast({ 
+      toast({
         title: "Creating post... Please wait while we publish your post.",
-        type: "info" 
+        type: "info",
       });
 
       const response = await useCreatePost({
@@ -111,34 +115,44 @@ export default function Page() {
         },
       });
 
-      if (response?.id) {
-        toast({ 
-          title: `Post created successfully! 🎉 Your post "${content.slice(0, 50)}${content.length > 50 ? '...' : ''}" has been published with ${images.length} image${images.length > 1 ? 's' : ''}.`,
+      console.log(response, "RESPONSEEE................");
+
+      if (response?.data?.id) {
+        toast({
+          title: `Post created successfully! 🎉 Your post "${content.slice(
+            0,
+            50
+          )}${content.length > 50 ? "..." : ""}" has been published with ${
+            images.length
+          } image${images.length > 1 ? "s" : ""}.`,
           type: "success",
-          duration: 4000
+          duration: 4000,
         });
-        
+
         // Reset form
         setContent("");
         setImages([]);
         setFileIds([]);
-        
+
         // Redirect to home page after a short delay
         setTimeout(() => {
           router.push("/(home)/home");
         }, 1500);
       } else {
         toast({
-          title: `Failed to create post: ${response?.message || "Something went wrong. Please try again."}`,
+          title: `Failed to create post: ${
+            response?.message || "Something went wrong. Please try again."
+          }`,
           type: "error",
-          duration: 4000
+          duration: 4000,
         });
       }
     } catch (e) {
-      toast({ 
-        title: "Post creation failed: Network error or server issue. Please check your connection and try again.",
+      toast({
+        title:
+          "Post creation failed: Network error or server issue. Please check your connection and try again.",
         type: "error",
-        duration: 4000
+        duration: 4000,
       });
     } finally {
       setLoading(false);
@@ -180,8 +194,12 @@ export default function Page() {
                   }}
                 />
                 <ThemedView>
-                  <ThemedText weight="bold">{user?.username}</ThemedText>
-                  <ThemedText>{`${user?.first_name} ${user?.last_name}`}</ThemedText>
+                  <ThemedText weight="bold">
+                    {user?.username || "..."}
+                  </ThemedText>
+                  <ThemedText>{`${user?.first_name || "..."} ${
+                    user?.last_name || "..."
+                  }`}</ThemedText>
                 </ThemedView>
               </ThemedView>
               <NativeButton

@@ -89,7 +89,7 @@ const Step9 = ({
           position: "bottom",
           type: "success",
         });
-        await AsyncStorage.setItem("token",response?.access_token);
+        await AsyncStorage.setItem("token", response?.access_token);
         onNext();
       } else {
         setLoading(false);
@@ -151,6 +151,7 @@ const Step9 = ({
                 fontSize: 16,
                 color: "#333",
                 minHeight: 100,
+                fontFamily: "Quicksand_500Medium",
                 textAlignVertical: "top",
               }}
               placeholderTextColor="#999"

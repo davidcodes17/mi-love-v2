@@ -36,6 +36,7 @@ const Posts = forwardRef((props, ref) => {
       setRefreshing(false);
     },
   }));
+  
 
   useEffect(() => {
     fetchPosts();

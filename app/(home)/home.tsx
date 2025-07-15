@@ -37,11 +37,15 @@ export default function HomeScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    // If Posts exposes a refresh method, call it
-    router.push("/home")
+  
+    try {
+      await postsRef.current?.refresh();
+    } catch (e) {
+      console.error("Failed to refresh posts:", e);
+    }
+  
     setRefreshing(false);
   }, []);
-
   const renderComponent = ({
     item,
     index,

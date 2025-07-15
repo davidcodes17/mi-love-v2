@@ -1,9 +1,7 @@
 import {
   Image,
   StyleSheet,
-  Text,
   TouchableOpacity,
-  ImageSourcePropType,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import ThemedView, { ThemedText } from "../ui/themed-view";
@@ -12,12 +10,13 @@ import { Heart } from "iconsax-react-native";
 import { PostProps } from "@/types/post.types";
 import { generateURL } from "@/utils/image-utils.utils";
 import { useGetProfile } from "@/hooks/auth-hooks.hooks";
-import { useUserProfileStore } from "@/hooks/auth-hooks.hooks";
 import {
   useLikePost,
   useUnlikePost,
   useGetAllLikes,
 } from "@/hooks/post-hooks.hooks";
+import { useAddFriend, useGetAllFriends, useUnFriend } from "@/hooks/friend-hooks.hooks";
+import { UserProfileR } from "@/types/auth.types";
 
 const Post: React.FC<PostProps> = ({ post }) => {
   const [expanded, setExpanded] = useState(false);
@@ -25,51 +24,73 @@ const Post: React.FC<PostProps> = ({ post }) => {
   const [profileImageLoading, setProfileImageLoading] = useState(true);
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
-  const toggleExpanded = () => setExpanded(!expanded);
-  const setProfile = useUserProfileStore((state) => state.setProfile);
-  const profile = useUserProfileStore((state) => state.profile);
+  const [user, setUser] = useState<UserProfileR>(null!);
+  const [isFriend, setIsFriend] = useState(false);
 
+  const toggleExpanded = () => setExpanded(!expanded);
   const shortText =
     post?.content.length > 70
-      ? post?.content.slice(0, 70) + "..."
-      : post?.content;
+      ? post.content.slice(0, 70) + "..."
+      : post.content;
+
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const profile = await useGetProfile();
-        if (profile) setProfile(profile);
-      } catch (e) {
-        // handle error if needed
+    const fetchUserAndFriends = async () => {
+      const profileRes = await useGetProfile();
+      if (profileRes?.data) {
+        setUser(profileRes.data);
+        const friendsRes = await useGetAllFriends({
+          filterBy: { filterBy: "friends" },
+        });
+        if (friendsRes?.data) {
+          setIsFriend(friendsRes.data.some((f: any) => f.id === post.user.id));
+        }
       }
     };
-    fetchProfile();
-  }, [setProfile]);
+    fetchUserAndFriends();
+  }, [post.user.id]);
 
   useEffect(() => {
     const fetchLikes = async () => {
-      const response = await useGetAllLikes({ id: post.id });
-      setLikeCount(response?.data?.length || 0);
-      
-      // Check if current user has already liked this post
-      if (response?.data && profile?.id) {
-        const userLiked = response.data.some((like: any) => like.userId === profile.id);
+      if (!post.id) return;
+      const res = await useGetAllLikes({ id: post.id });
+      const likes = res?.data || [];
+      setLikeCount(likes.length);
+      if (user?.id) {
+        const userLiked = likes.some((like: any) => like.userId === user.id);
         setLiked(userLiked);
       }
     };
-    fetchLikes();
-  }, [post.id, profile?.id]);
+    if (user?.id) {
+      fetchLikes();
+    }
+  }, [post.id, user?.id]);
 
   const handleLike = async () => {
-    if (liked) {
-      await useUnlikePost({ id: post.id });
-      setLiked(false);
-      setLikeCount((c) => c - 1);
-    } else {
-      await useLikePost({ id: post.id });
-      setLiked(true);
-      setLikeCount((c) => c + 1);
+    try {
+      if (!user?.id) return;
+      if (liked) {
+        const res = await useUnlikePost({ id: post.id });
+        setLiked(false);
+        setLikeCount((c) => Math.max(0, c - 1));
+      } else {
+        const res = await useLikePost({ id: post.id });
+        setLiked(true);
+        setLikeCount((c) => c + 1);
+      }
+    } catch (err) {
+      console.error("Error toggling like:", err);
     }
+  };
+
+  const onAddFriend = async () => {
+    await useAddFriend({ id: post.user.id });
+    setIsFriend(true);
+  };
+
+  const onUnfriend = async () => {
+    await useUnFriend({ id: post.user.id });
+    setIsFriend(false);
   };
 
   return (
@@ -103,12 +124,8 @@ const Post: React.FC<PostProps> = ({ post }) => {
           justifyContent="space-between"
           alignItems="center"
         >
-          <ThemedView
-            flexDirection="row"
-            alignItems="center"
-            gap={10}
-            marginBottom={5}
-          >
+          {/* Profile Info */}
+          <ThemedView flexDirection="row" alignItems="center" gap={10} marginBottom={5}>
             <Image
               source={
                 profileImageLoading
@@ -137,21 +154,39 @@ const Post: React.FC<PostProps> = ({ post }) => {
             </ThemedView>
           </ThemedView>
 
+          {/* Buttons */}
           <ThemedView flexDirection="row" alignItems="center" gap={10}>
-            <TouchableOpacity
-            //  onPress={onAddFriend} disabled={!onAddFriend}
-            >
-              <ThemedText
-                backgroundColor={COLORS.primary}
-                color={"#fff"}
-                padding={7.5}
-                borderRadius={200}
-                fontSize={12}
-                paddingHorizontal={15}
-              >
-                Add Friend
-              </ThemedText>
-            </TouchableOpacity>
+            {user?.email !== post?.user?.email && (
+              isFriend ? (
+                <TouchableOpacity onPress={onUnfriend}>
+                  <ThemedText
+                    backgroundColor={COLORS.primary}
+                    color="#fff"
+                    padding={7.5}
+                    borderRadius={200}
+                    fontSize={12}
+                    paddingHorizontal={15}
+                  >
+                    Unfriend
+                  </ThemedText>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={onAddFriend}>
+                  <ThemedText
+                    backgroundColor={COLORS.primary}
+                    color="#fff"
+                    padding={7.5}
+                    borderRadius={200}
+                    fontSize={12}
+                    paddingHorizontal={15}
+                  >
+                    Add Friend
+                  </ThemedText>
+                </TouchableOpacity>
+              )
+            )}
+
+            {/* Like button */}
             <TouchableOpacity onPress={handleLike}>
               <ThemedView
                 borderColor={liked ? COLORS.primary : "#fff"}
@@ -165,15 +200,19 @@ const Post: React.FC<PostProps> = ({ post }) => {
                 <Heart
                   size={18}
                   color={liked ? COLORS.primary : "#fff"}
-                  variant={liked ? "Bold" : undefined}
+                  variant={liked ? "Bold" : "Outline"}
                 />
+                <ThemedText color={liked ? COLORS.primary : "#fff"} fontSize={12}>
+                  {likeCount}
+                </ThemedText>
               </ThemedView>
             </TouchableOpacity>
           </ThemedView>
         </ThemedView>
 
+        {/* Post content */}
         <ThemedView paddingBottom={10} alignItems="center">
-          <ThemedText fontSize={12} color={"#fff"} flexWrap={"wrap"}>
+          <ThemedText fontSize={12} color="#fff" flexWrap="wrap">
             {expanded ? post?.content : shortText}{" "}
             {post?.content.length > 70 && (
               <TouchableOpacity onPress={toggleExpanded}>

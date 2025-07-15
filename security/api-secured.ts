@@ -2,7 +2,7 @@ import axios from 'axios'
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Configure the base URL for your API
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://144.126.249.18:9999'
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://ttznxdxb-9999.uks1.devtunnels.ms'
 
 // Create a configured axios instance
 const apiSecured = axios.create({

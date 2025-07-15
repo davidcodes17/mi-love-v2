@@ -13,7 +13,10 @@ interface ProfileImageGridProps {
   linkBase: string;
 }
 
-const ProfileImageGrid: React.FC<ProfileImageGridProps> = ({ posts, linkBase }) => {
+const ProfileImageGrid: React.FC<ProfileImageGridProps> = ({
+  posts,
+  linkBase,
+}) => {
   const [likes, setLikes] = useState<number[]>([]);
   const profile = useUserProfileStore((state) => state.profile);
 
@@ -68,7 +71,7 @@ const ProfileImageGrid: React.FC<ProfileImageGridProps> = ({ posts, linkBase }) 
               gap={2}
             >
               <ThemedText color={"#fff"} fontSize={20}>
-                {likes[idx] ?? 0}
+                {post?._count?.likes || 0}
               </ThemedText>
               <Heart color={"white"} variant="Bold" size={20} />
             </ThemedView>

@@ -112,7 +112,7 @@ export default function ProfileScreen() {
             >
               <ThemedView>
                 <ThemedText textAlign="center" weight="medium" fontSize={20}>
-                  120
+                  {posts?.length || 0}
                 </ThemedText>
                 <ThemedText textAlign="center" fontSize={15} color={"#aaa"}>
                   Posts
@@ -157,10 +157,7 @@ export default function ProfileScreen() {
             </ThemedView>
 
             {/* A good grid view of images 2 per row */}
-            <ProfileImageGrid
-              posts={posts}
-              linkBase="/(home)/view-friend"
-            />
+            <ProfileImageGrid posts={posts} linkBase="/(home)/view-friend" />
           </ThemedView>
         </ThemedView>
       </ScrollView>

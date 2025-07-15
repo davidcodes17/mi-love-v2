@@ -1,14 +1,25 @@
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import React, { useState } from "react";
 import ThemedView, { ThemedText } from "../ui/themed-view";
 import { Call, Message2 } from "iconsax-react-native";
 import { COLORS } from "@/config/theme";
 import NativeButton from "../ui/native-button";
+import { UserProfileR } from "@/types/auth.types";
+import { generateURL } from "@/utils/image-utils.utils";
 
-const FriendCompo = ({ isFriend }: { isFriend: boolean }) => {
+const FriendCompo = ({
+  user,
+  isFriend,
+}: {
+  user: UserProfileR;
+  isFriend: boolean;
+}) => {
   const [imageError, setImageError] = useState(false);
 
   return (
+    <TouchableOpacity onPress={()=>{
+      console.log(".....")
+    }}>
     <ThemedView
       flexDirection="row"
       justifyContent="space-between"
@@ -21,7 +32,7 @@ const FriendCompo = ({ isFriend }: { isFriend: boolean }) => {
             imageError
               ? require("@/assets/users.jpg")
               : {
-                  uri: "https://cdn.dribbble.com/userupload/36974838/file/original-c2508a14d3725cbfa022122d6ada6015.jpg?resize=752x&vertical=center",
+                  uri: generateURL({ url: user?.profile_picture?.url }),
                 }
           }
           onError={() => setImageError(true)}
@@ -34,9 +45,14 @@ const FriendCompo = ({ isFriend }: { isFriend: boolean }) => {
         />
         <ThemedView>
           <ThemedText fontSize={12} weight="bold">
-            areegbedavid
+            {user?.username || "Username"}
           </ThemedText>
-          <ThemedText>Areegbe David</ThemedText>
+          <ThemedText>
+            {(user?.first_name &&
+              user?.last_name &&
+              `${user?.first_name} ${user?.last_name}`) ||
+              "Full name"}
+          </ThemedText>
         </ThemedView>
       </ThemedView>
 
@@ -67,6 +83,7 @@ const FriendCompo = ({ isFriend }: { isFriend: boolean }) => {
         />
       )}
     </ThemedView>
+    </TouchableOpacity>
   );
 };
 

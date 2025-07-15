@@ -1,37 +1,71 @@
-import React from "react";
-import { FlatList, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { FlatList, View, ActivityIndicator } from "react-native";
 import FriendCompo from "@/components/common/friend-compo";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "@/config/theme";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import globalStyles from "@/components/styles/global-styles";
 import { Profile2User } from "iconsax-react-native";
-
-const friendData = Array.from({ length: 12 }, (_, i) => ({ id: i.toString() }));
+import { FriendsListResponse } from "@/types/friend.types";
+import { useGetAllFriends } from "@/hooks/friend-hooks.hooks";
+import { FilterBy } from "@/types/friend.types";
 
 export default function Page() {
+  const [friends, setFriends] = useState<FriendsListResponse | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [filterBy, setFilterBy] = useState<FilterBy>({ filterBy: "friends" });
+
+  const fetchFriends = async () => {
+    try {
+      setLoading(true);
+      const response = await useGetAllFriends({ filterBy });
+      setFriends(response || null);
+    } catch (error) {
+      console.error("Failed to fetch friends:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFriends();
+  }, []);
+
   return (
     <SafeAreaView style={globalStyles.wrapper}>
-      <FlatList
-        data={friendData}
-        keyExtractor={(item) => item.id}
-        renderItem={() => <FriendCompo isFriend={true} />}
-        contentContainerStyle={{ padding: 20 }}
-        ListHeaderComponent={() => (
-          <ThemedView
-            alignItems="center"
-            flexDirection="row"
-            marginBottom={20}
-            gap={10}
-            justifyContent="center"
-          >
-            <Profile2User variant="Bold" size={20} color={COLORS.primary} />
-            <ThemedText textAlign="center" fontSize={20}>
-              Friends
-            </ThemedText>
-          </ThemedView> 
-        )}
-      />
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={friends?.data || []}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <FriendCompo user={item} isFriend={true} />}
+          contentContainerStyle={{ padding: 20, flexGrow: 1 }}
+          ListHeaderComponent={() => (
+            <ThemedView
+              alignItems="center"
+              flexDirection="row"
+              marginBottom={20}
+              gap={10}
+              justifyContent="center"
+            >
+              <Profile2User variant="Bold" size={20} color={COLORS.primary} />
+              <ThemedText textAlign="center" fontSize={20}>
+                Friends
+              </ThemedText>
+            </ThemedView>
+          )}
+          ListEmptyComponent={() => (
+            <View style={{ alignItems: "center", marginTop: 50 }}>
+              <ThemedText fontSize={16} textAlign="center">
+                No friends found.
+              </ThemedText>
+            </View>
+          )}
+        />
+      )}
     </SafeAreaView>
   );
 }
