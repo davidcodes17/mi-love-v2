@@ -6,6 +6,7 @@ import { COLORS } from "@/config/theme";
 import NativeButton from "../ui/native-button";
 import { UserProfileR } from "@/types/auth.types";
 import { generateURL } from "@/utils/image-utils.utils";
+import { Href, router } from "expo-router";
 
 const FriendCompo = ({
   user,
@@ -18,7 +19,8 @@ const FriendCompo = ({
 
   return (
     <TouchableOpacity onPress={()=>{
-      console.log(".....")
+      console.log(".....UUUUUU.")
+      router.push("/view-friends?id="+user?.id as Href)
     }}>
     <ThemedView
       flexDirection="row"

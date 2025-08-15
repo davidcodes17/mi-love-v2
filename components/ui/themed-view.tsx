@@ -13,11 +13,13 @@ const ThemedView = ({ children, ...rest }: ThemedViewProps) => {
 type ThemedTextProps = {
   children: ReactNode;
   weight?: NativeTextWeight;
+  numberOfLines?: number;
+  ellipsizeMode?: 'head' | 'middle' | 'tail' | 'clip';
 } & TextStyle;
 
-export const ThemedText = ({ children, weight, ...rest }: ThemedTextProps) => {
+export const ThemedText = ({ children, weight, numberOfLines, ellipsizeMode, ...rest }: ThemedTextProps) => {
   return (
-    <NativeText weight={weight} style={rest}>
+    <NativeText weight={weight} numberOfLines={numberOfLines} ellipsizeMode={ellipsizeMode} style={rest}>
       {children}
     </NativeText>
   );

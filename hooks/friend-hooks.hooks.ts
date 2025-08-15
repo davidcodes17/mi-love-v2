@@ -1,4 +1,4 @@
-import { addFriends, getAllFriends, unFriend } from "@/services/friend-service.service";
+import { addFriends, getAllFriends, getSingleFriend, unFriend } from "@/services/friend-service.service";
 import { FilterBy } from "@/types/friend.types";
 
 export const useGetAllFriends = async ({
@@ -16,5 +16,9 @@ export const useAddFriend = async ({ id }: { id: string }) => {
 };
 export const useUnFriend = async ({ id }: { id: string }) => {
   const response = await unFriend({ id });
+  return response;
+};
+export const useGetSingleFriend = async ({ id }: { id: string }) => {
+  const response = await getSingleFriend({ id });
   return response;
 };

@@ -1,12 +1,18 @@
-import { Image, StyleSheet, View } from "react-native";
+import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
 import React, { useState } from "react";
 import ThemedView, { ThemedText } from "../ui/themed-view";
 import { COLORS } from "@/config/theme";
+import { Link, router } from "expo-router";
 
 const ChatCompo = () => {
   const [imageError, setImageError] = useState(false);
 
   return (
+    <TouchableOpacity onPress={()=>{
+      router.push("/(chats)/chats")
+    }} style={{
+      flex : 1
+    }}>
     <ThemedView
       flexDirection="row"
       justifyContent="space-between"
@@ -57,6 +63,7 @@ const ChatCompo = () => {
         </ThemedView>
       </ThemedView>
     </ThemedView>
+    </TouchableOpacity>
   );
 };
 

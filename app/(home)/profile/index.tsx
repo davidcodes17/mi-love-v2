@@ -5,10 +5,10 @@ import NativeText from "@/components/ui/native-text";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import { COLORS } from "@/config/theme";
 import { Heart, More, MoreCircle } from "iconsax-react-native";
-import { ScrollView } from "react-native";
+import { ScrollView, TouchableOpacity } from "react-native";
 import { Image, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Href, Link } from "expo-router";
+import { Href, Link, router } from "expo-router";
 import { useGetProfile, useUserProfileStore } from "@/hooks/auth-hooks.hooks";
 import { generateURL } from "@/utils/image-utils.utils";
 import { useEffect, useState } from "react";
@@ -16,6 +16,7 @@ import { UserProfileR } from "@/types/auth.types";
 import ProfileImageGrid from "@/components/common/profile-image-grid";
 import { useGetAllPosts } from "@/hooks/post-hooks.hooks";
 import { Post } from "@/types/post.types";
+import { getAge } from "@/utils/age-utils.utils";
 
 export default function ProfileScreen() {
   const [profile, setUser] = useState<UserProfileR>(null!);
@@ -63,9 +64,13 @@ export default function ProfileScreen() {
         >
           <BackButton />
           <ThemedText weight="bold">{profile?.username || "-"}</ThemedText>
-          <ThemedView>
-            <More variant="Outline" color="#000" size={30} />
-          </ThemedView>
+          <TouchableOpacity onPress={()=>{
+            router.push("/settings")
+          }}>
+            <ThemedView>
+              <More variant="Outline" color="#000" size={30} />
+            </ThemedView>
+          </TouchableOpacity>
         </ThemedView>
         <ThemedView>
           <ThemedView
@@ -119,41 +124,21 @@ export default function ProfileScreen() {
                 </ThemedText>
               </ThemedView>
               <ThemedView>
-                <ThemedText textAlign="center" weight="medium" fontSize={20}>
-                  16.1M
+                <ThemedText textAlign="center" textTransform="capitalize" weight="medium" fontSize={20}>
+                  {profile?.gender || "N/A"}
                 </ThemedText>
                 <ThemedText textAlign="center" fontSize={15} color={"#aaa"}>
-                  Followers
+                  Gender
                 </ThemedText>
               </ThemedView>
               <ThemedView>
                 <ThemedText textAlign="center" weight="medium" fontSize={20}>
-                  125
+                  {profile?._count.my_friends || 0}
                 </ThemedText>
                 <ThemedText textAlign="center" fontSize={15} color={"#aaa"}>
-                  Following
+                  Friends
                 </ThemedText>
               </ThemedView>
-            </ThemedView>
-
-            <ThemedView flexDirection="row" marginTop={20}>
-              <NativeButton
-                mode="outline"
-                text={"Edit Profile"}
-                style={{
-                  flex: 1,
-                  marginRight: 10,
-                  borderRadius: 200,
-                }}
-              />
-              <NativeButton
-                mode="fill"
-                text={"Chats"}
-                style={{
-                  flex: 1,
-                  borderRadius: 200,
-                }}
-              />
             </ThemedView>
 
             {/* A good grid view of images 2 per row */}

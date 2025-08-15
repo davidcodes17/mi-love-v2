@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { FlatList, View, ActivityIndicator } from "react-native";
+import { FlatList, View, ActivityIndicator, RefreshControl } from "react-native";
 import FriendCompo from "@/components/common/friend-compo";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "@/config/theme";
@@ -14,6 +14,7 @@ export default function Page() {
   const [friends, setFriends] = useState<FriendsListResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [filterBy, setFilterBy] = useState<FilterBy>({ filterBy: "friends" });
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchFriends = async () => {
     try {
@@ -24,7 +25,13 @@ export default function Page() {
       console.error("Failed to fetch friends:", error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchFriends();
   };
 
   useEffect(() => {
@@ -43,6 +50,9 @@ export default function Page() {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <FriendCompo user={item} isFriend={true} />}
           contentContainerStyle={{ padding: 20, flexGrow: 1 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
           ListHeaderComponent={() => (
             <ThemedView
               alignItems="center"

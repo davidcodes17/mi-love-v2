@@ -1,7 +1,9 @@
 import React, { useEffect } from "react";
 import {
+  Dimensions,
   Image,
   SafeAreaView,
+  ScrollView,
   useColorScheme,
   View,
 } from "react-native";
@@ -42,76 +44,89 @@ const Onboarding = () => {
     opacity: textOpacity.value,
   }));
 
+  const height = Dimensions.get("screen").height+10;
+
   return (
     <SafeAreaView style={globalStyles.wrapper}>
-      <View style={{ flex: 1 }}>
-        <Animated.View style={[logoStyle]}>
-          <ThemedView
-            flexDirection={"row"}
-            gap={10}
-            alignItems={"center"}
-            justifyContent={"center"}
-          >
-            <Image
-              source={require("@/assets/images/onboarding/icon.png")}
-              style={{ width: 50, height: 50, alignSelf: "center" }}
-            />
-            <ThemedText weight="medium" fontSize={25}>
-              Mi Love
-            </ThemedText>
-          </ThemedView>
-        </Animated.View>
-
-        <ThemedView justifyContent="center" flex={1} height={"100%"}>
-          <Animated.Image
-            source={require("@/assets/images/hands.png")}
-            style={[
-              {
-                width: "100%",
-                height: 500,
-                alignSelf: "center",
-              },
-              imageStyle,
-            ]}
-            // resizeMode="contain"
-          />
-
-          <Animated.View style={[textStyle]}>
-            <ThemedText
-              fontSize={10}
-              marginBottom={-10}
-              weight="medium"
-              textAlign={"center"}
-            >
-              Set up your profile in minutes and let your personality shine.
-            </ThemedText>
-
-            <ThemedText
-              weight="bold"
-              padding={10}
-              fontSize={45}
-              textAlign={"center"}
-            >
-              Match. Chat. Connect.
-            </ThemedText>
-
+      <ScrollView
+        style={{
+          height: height,
+        }}
+      >
+        <View style={{ flex: 1 }}>
+          <Animated.View style={[logoStyle]}>
             <ThemedView
-              paddingTop={20}
-              flexDirection="row"
+              flexDirection={"row"}
               gap={10}
-              justifyContent="center"
+              alignItems={"center"}
+              justifyContent={"center"}
             >
-              <NativeButton href={"/auth/login"} style={{ width: "40%" , borderRadius : 100}} text={"Login"} mode="fill" />
-              <NativeButton
-                href={"/auth/create-account"}
-                style={{ width: "40%", borderRadius : 100 }}
-                text={"Create Account"}
-                mode="outline"
+              <Image
+                source={require("@/assets/images/onboarding/icon.png")}
+                style={{ width: 50, height: 50, alignSelf: "center" }}
               />
+              <ThemedText weight="medium" fontSize={25}>
+                Mi Love
+              </ThemedText>
             </ThemedView>
           </Animated.View>
-        </ThemedView>
-      </View>
+
+          <ThemedView justifyContent="center" flex={1} height={"100%"}>
+            <Animated.Image
+              source={require("@/assets/images/hands.png")}
+              style={[
+                {
+                  width: "100%",
+                  height: 500,
+                  alignSelf: "center",
+                },
+                imageStyle,
+              ]}
+              // resizeMode="contain"
+            />
+
+            <Animated.View style={[textStyle]}>
+              <ThemedText
+                fontSize={10}
+                marginBottom={-10}
+                weight="medium"
+                textAlign={"center"}
+              >
+                Set up your profile in minutes and let your personality shine.
+              </ThemedText>
+
+              <ThemedText
+                weight="bold"
+                padding={10}
+                fontSize={45}
+                textAlign={"center"}
+              >
+                Match. Chat. Connect.
+              </ThemedText>
+
+              <ThemedView
+                paddingTop={20}
+                flexDirection="row"
+                gap={10}
+                justifyContent="center"
+              >
+                <NativeButton
+                  href={"/auth/login"}
+                  style={{ width: "40%", borderRadius: 100 }}
+                  text={"Login"}
+                  mode="fill"
+                />
+                <NativeButton
+                  href={"/auth/create-account"}
+                  style={{ width: "40%", borderRadius: 100 }}
+                  text={"Create Account"}
+                  mode="outline"
+                />
+              </ThemedView>
+            </Animated.View>
+          </ThemedView>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };

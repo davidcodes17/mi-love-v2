@@ -61,7 +61,7 @@ export default function RootLayout() {
         <ThemeProvider value={colorScheme === "dark" ? DarkTheme : LightTheme}>
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
-            keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
+            // keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
             style={{ flex: 1 }}
           >
             <ToastProvider
@@ -78,11 +78,19 @@ export default function RootLayout() {
                   options={{ headerShown: false }}
                 />
                 <Stack.Screen
+                  name="(chats)"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
                   name="(notifications)"
                   options={{ headerShown: false }}
                 />
                 <Stack.Screen
                   name="(settings)"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="(friends)"
                   options={{ headerShown: false }}
                 />
                 <Stack.Screen name="(entry)" options={{ headerShown: false }} />

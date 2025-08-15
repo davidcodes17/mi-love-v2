@@ -13,10 +13,10 @@ export const getAllFriends = async ({
     return error?.response?.data?.error;
   }
 };
-export const addFriends = async ({id}:{id : string}) => {
+export const addFriends = async ({ id }: { id: string }) => {
   try {
-    const response = await apiSecured.post(`/friends`,{
-      friendId : id
+    const response = await apiSecured.post(`/friends`, {
+      friendId: id,
     });
     return response.data;
   } catch (error: any) {
@@ -24,11 +24,20 @@ export const addFriends = async ({id}:{id : string}) => {
     return error?.response?.data?.error;
   }
 };
-export const unFriend = async ({id}:{id : string}) => {
+export const unFriend = async ({ id }: { id: string }) => {
   try {
-    const response = await apiSecured.post(`/friends/unfriend`,{
-      friendId : id
+    const response = await apiSecured.post(`/friends/unfriend`, {
+      friendId: id,
     });
+    return response.data;
+  } catch (error: any) {
+    console.log(error);
+    return error?.response?.data?.error;
+  }
+};
+export const getSingleFriend = async ({ id }: { id: string }) => {
+  try {
+    const response = await apiSecured.get(`/profile/${id}`);
     return response.data;
   } catch (error: any) {
     console.log(error);

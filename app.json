@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Mi Love",
-    "slug": "Mi Love",
+    "slug": "mi-love",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -12,10 +12,16 @@
       "supportsTablet": true
     },
     "android": {
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "BLUETOOTH"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.david_codes.milove"
     },
     "web": {
       "bundler": "metro",
@@ -38,6 +44,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b1d1260d-8e0c-48c9-83ec-bfa11bf2a79a"
+      }
     }
   }
 }

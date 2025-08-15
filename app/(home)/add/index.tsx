@@ -94,9 +94,7 @@ export default function Page() {
     try {
       if (images.length && fileIds.length !== images.length) {
         toast({
-          title: `Uploading ${images.length} image${
-            images.length > 1 ? "s" : ""
-          }...`,
+          title: "Uploading Post...",
           type: "info",
         });
         ids = await uploadImages();

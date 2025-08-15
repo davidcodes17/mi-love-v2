@@ -2,6 +2,9 @@ import {
   Image,
   StyleSheet,
   TouchableOpacity,
+  ScrollView,
+  View,
+  Dimensions,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import ThemedView, { ThemedText } from "../ui/themed-view";
@@ -15,7 +18,11 @@ import {
   useUnlikePost,
   useGetAllLikes,
 } from "@/hooks/post-hooks.hooks";
-import { useAddFriend, useGetAllFriends, useUnFriend } from "@/hooks/friend-hooks.hooks";
+import {
+  useAddFriend,
+  useGetAllFriends,
+  useUnFriend,
+} from "@/hooks/friend-hooks.hooks";
 import { UserProfileR } from "@/types/auth.types";
 
 const Post: React.FC<PostProps> = ({ post }) => {
@@ -26,6 +33,14 @@ const Post: React.FC<PostProps> = ({ post }) => {
   const [likeCount, setLikeCount] = useState(0);
   const [user, setUser] = useState<UserProfileR>(null!);
   const [isFriend, setIsFriend] = useState(false);
+  const [currentImage, setCurrentImage] = useState(0);
+  const handleScroll = (event: any) => {
+    const index = Math.round(
+      event.nativeEvent.contentOffset.x /
+        event.nativeEvent.layoutMeasurement.width
+    );
+    setCurrentImage(index);
+  };
 
   const toggleExpanded = () => setExpanded(!expanded);
   const shortText =
@@ -33,6 +48,9 @@ const Post: React.FC<PostProps> = ({ post }) => {
       ? post.content.slice(0, 70) + "..."
       : post.content;
 
+  const windowWidth = Dimensions.get("window").width;
+  const horizontalPadding = 20; // Matches ThemedView paddingHorizontal
+  const galleryWidth = windowWidth - horizontalPadding * 2;
 
   useEffect(() => {
     const fetchUserAndFriends = async () => {
@@ -95,20 +113,75 @@ const Post: React.FC<PostProps> = ({ post }) => {
 
   return (
     <ThemedView position="relative" marginBottom={20}>
-      <Image
-        source={
-          mainImageLoading
-            ? require("@/assets/user.png")
-            : { uri: generateURL({ url: post?.files[0]?.url }) }
-        }
+      {/* Image Gallery */}
+      <View
         style={{
-          width: "100%",
+          width: galleryWidth,
           height: 400,
           borderRadius: 20,
+          overflow: "hidden",
+          alignSelf: "center",
         }}
-        onLoadEnd={() => setMainImageLoading(false)}
-        resizeMode="cover"
-      />
+      >
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          style={{ width: galleryWidth }}
+        >
+          {post.files && post.files.length > 0 ? (
+            post.files.map((file, idx) => (
+              <Image
+                key={file.url + idx}
+                source={
+                  mainImageLoading
+                    ? require("@/assets/user.png")
+                    : { uri: generateURL({ url: file.url }) }
+                }
+                style={{ width: galleryWidth, height: 400 }}
+                onLoadEnd={() => setMainImageLoading(false)}
+                resizeMode="cover"
+              />
+            ))
+          ) : (
+            <Image
+              source={require("@/assets/user.png")}
+              style={{ width: galleryWidth, height: 400 }}
+              resizeMode="cover"
+            />
+          )}
+        </ScrollView>
+        {/* Pagination Dots */}
+        {post.files && post.files.length > 1 && (
+          <View
+            style={{
+              position: "absolute",
+              bottom: 10,
+              left: 0,
+              right: 0,
+              flexDirection: "row",
+              justifyContent: "center",
+            }}
+          >
+            {post.files.map((_, idx) => (
+              <View
+                key={"dot-" + idx}
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  marginHorizontal: 3,
+                  backgroundColor:
+                    currentImage === idx ? COLORS.primary : "#fff",
+                  opacity: 0.8,
+                }}
+              />
+            ))}
+          </View>
+        )}
+      </View>
 
       <ThemedView
         position="absolute"
@@ -125,7 +198,12 @@ const Post: React.FC<PostProps> = ({ post }) => {
           alignItems="center"
         >
           {/* Profile Info */}
-          <ThemedView flexDirection="row" alignItems="center" gap={10} marginBottom={5}>
+          <ThemedView
+            flexDirection="row"
+            alignItems="center"
+            gap={10}
+            marginBottom={5}
+          >
             <Image
               source={
                 profileImageLoading
@@ -156,8 +234,8 @@ const Post: React.FC<PostProps> = ({ post }) => {
 
           {/* Buttons */}
           <ThemedView flexDirection="row" alignItems="center" gap={10}>
-            {user?.email !== post?.user?.email && (
-              isFriend ? (
+            {user?.email !== post?.user?.email &&
+              (isFriend ? (
                 <TouchableOpacity onPress={onUnfriend}>
                   <ThemedText
                     backgroundColor={COLORS.primary}
@@ -183,8 +261,7 @@ const Post: React.FC<PostProps> = ({ post }) => {
                     Add Friend
                   </ThemedText>
                 </TouchableOpacity>
-              )
-            )}
+              ))}
 
             {/* Like button */}
             <TouchableOpacity onPress={handleLike}>
@@ -202,7 +279,10 @@ const Post: React.FC<PostProps> = ({ post }) => {
                   color={liked ? COLORS.primary : "#fff"}
                   variant={liked ? "Bold" : "Outline"}
                 />
-                <ThemedText color={liked ? COLORS.primary : "#fff"} fontSize={12}>
+                <ThemedText
+                  color={liked ? COLORS.primary : "#fff"}
+                  fontSize={12}
+                >
                   {likeCount}
                 </ThemedText>
               </ThemedView>
@@ -211,13 +291,23 @@ const Post: React.FC<PostProps> = ({ post }) => {
         </ThemedView>
 
         {/* Post content */}
-        <ThemedView paddingBottom={10} alignItems="center">
-          <ThemedText fontSize={12} color="#fff" flexWrap="wrap">
-            {expanded ? post?.content : shortText}{" "}
+        <ThemedView paddingBottom={10}>
+          <ThemedText
+            fontSize={13}
+            color="#fff"
+            flexWrap="wrap"
+            lineHeight={18}
+          >
+            {expanded ? post?.content : shortText}
             {post?.content.length > 70 && (
               <TouchableOpacity onPress={toggleExpanded}>
-                <ThemedText color={COLORS.primary} fontSize={12}>
-                  {expanded ? "Less" : "More"}
+                <ThemedText
+                  color={COLORS.primary}
+                  fontSize={13}
+                  fontWeight="600"
+                  marginLeft={4}
+                >
+                  {expanded ? " ✦ show less" : " ✦ read more"}
                 </ThemedText>
               </TouchableOpacity>
             )}

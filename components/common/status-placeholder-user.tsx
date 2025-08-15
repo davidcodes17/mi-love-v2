@@ -13,7 +13,6 @@ const StatusPlaceholderUser = () => {
       padding={15}
       borderRadius={10}
       justifyContent="space-between"
-      //   flexDirection="row"
     >
       <ThemedView position="relative">
         <Image
