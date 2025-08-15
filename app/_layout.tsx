@@ -74,6 +74,10 @@ export default function RootLayout() {
               <Stack>
                 <Stack.Screen name="(home)" options={{ headerShown: false }} />
                 <Stack.Screen
+                  name="(status)"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
                   name="(search)"
                   options={{ headerShown: false }}
                 />
