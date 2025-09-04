@@ -1,17 +1,31 @@
+import { initiatePanicButton } from "@/services/account-service.service";
 import {
   createAccountService,
+  deleteAccountService,
   getProfile,
   loginService,
+  notificationService,
   resetPasswordService,
   sendOtp,
   uploadService,
   verifyOtp,
 } from "@/services/auth-service.service";
-import { LoginPayLoad, ResetPayload, UserProfile, UserProfileR } from "@/types/auth.types";
+import {
+  AccountDeletion,
+  LoginPayLoad,
+  PanicButtonPayload,
+  ResetPayload,
+  UserProfile,
+  UserProfileR,
+} from "@/types/auth.types";
 import { create } from "zustand";
 
 export const loginServiceProxy = async ({ data }: { data: LoginPayLoad }) => {
   const response = await loginService({ data });
+  return response;
+};
+export const useNotificationService = async ({ token }: { token: string }) => {
+  const response = await notificationService({ token });
   return response;
 };
 export const useResetPasswordService = async ({
@@ -72,3 +86,20 @@ export const useUserProfileStore = create<UserProfileStore>((set) => ({
   setProfile: (profile) => set({ profile }),
   clearProfile: () => set({ profile: null }),
 }));
+
+export const useInitiatePanicButton = async ({
+  data,
+}: {
+  data: PanicButtonPayload;
+}) => {
+  const response = await initiatePanicButton({ data });
+  return response;
+};
+export const useDeleteAccount = async ({
+  data,
+}: {
+  data: AccountDeletion;
+}) => {
+  const response = await deleteAccountService({ data });
+  return response;
+};

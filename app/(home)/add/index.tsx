@@ -4,7 +4,12 @@ import NativeText from "@/components/ui/native-text";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import { COLORS } from "@/config/theme";
 import { AddSquare } from "iconsax-react-native";
-import { Image, ScrollView, TouchableOpacity } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
 import { TextInput } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
@@ -15,6 +20,7 @@ import toast from "@originaltimi/rn-toast";
 import { UserProfileR } from "@/types/auth.types";
 import { generateURL } from "@/utils/image-utils.utils";
 import { router } from "expo-router";
+import { useUserStore } from "@/store/store";
 
 export default function Page() {
   const [content, setContent] = useState("");
@@ -79,14 +85,14 @@ export default function Page() {
       return;
     }
 
-    if (images.length === 0) {
-      toast({
-        title:
-          "No images selected. Please add at least one image to your post.",
-        type: "error",
-      });
-      return;
-    }
+    // if (images.length === 0) {
+    //   toast({
+    //     title:
+    //       "No images selected. Please add at least one image to your post.",
+    //     type: "error",
+    //   });
+    //   return;
+    // }
 
     setLoading(true);
     let ids = fileIds;
@@ -157,19 +163,8 @@ export default function Page() {
     }
   };
 
-  const [user, setUser] = useState<UserProfileR>(null!);
-
-  const fetchMe = async () => {
-    const response = await useGetProfile();
-    console.log(response);
-    setUser(response?.data);
-  };
-
-  useEffect(() => {
-    fetchMe();
-    console.log("SJSJ");
-  }, []);
-
+  const { user, updateUser, clearUser } = useUserStore();
+  console.log(user,"USER")
   return (
     <SafeAreaView style={globalStyles.wrapper}>
       <ScrollView>
@@ -181,16 +176,20 @@ export default function Page() {
           <ThemedView marginTop={20}>
             <ThemedView flexDirection="row" justifyContent="space-between">
               <ThemedView flexDirection="row" gap={10} alignItems="center">
-                <Image
-                  source={{
-                    uri: generateURL({ url: user?.profile_picture?.url }),
-                  }}
-                  style={{
-                    width: 45,
-                    height: 45,
-                    borderRadius: 100,
-                  }}
-                />
+                {user ? (
+                  <Image
+                    source={{
+                      uri: generateURL({ url: user?.profile_picture?.url }),
+                    }}
+                    style={{
+                      width: 45,
+                      height: 45,
+                      borderRadius: 100,
+                    }}
+                  />
+                ) : (
+                  <ActivityIndicator size={"small"} color={COLORS.primary} />
+                )}
                 <ThemedView>
                   <ThemedText weight="bold">
                     {user?.username || "..."}
@@ -217,7 +216,7 @@ export default function Page() {
               <TextInput
                 multiline={true}
                 numberOfLines={3}
-                placeholder="What's on your mind, areegbedavid?"
+                placeholder={`Whats on your mind ${user?.username}?`}
                 style={{
                   fontFamily: "Quicksand_500Medium",
                   fontSize: 20,

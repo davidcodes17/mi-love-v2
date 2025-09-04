@@ -1,9 +1,20 @@
 import apiSecured from "@/security/api-secured";
-import { LoginPayLoad, ResetPayload, UserProfile } from "@/types/auth.types";
+import { AccountDeletion, LoginPayLoad, ResetPayload, UserProfile } from "@/types/auth.types";
 
 export const loginService = async ({ data }: { data: LoginPayLoad }) => {
   try {
     const response = await apiSecured.post("/auth/login", data);
+    return response.data;
+  } catch (error: any) {
+    console.log(error);
+    return error?.response?.data?.error;
+  }
+};
+export const notificationService = async ({ token }: { token: string }) => {
+  try {
+    const response = await apiSecured.post("/profile/save-fcm", {
+      fcmToken: token,
+    });
     return response.data;
   } catch (error: any) {
     console.log(error);
@@ -88,9 +99,26 @@ export const createAccountService = async ({ data }: { data: UserProfile }) => {
   }
 };
 
-export const resetPasswordService = async ({ data }: { data: ResetPayload }) => {
+export const resetPasswordService = async ({
+  data,
+}: {
+  data: ResetPayload;
+}) => {
   try {
     const response = await apiSecured.post("/auth/reset-password", data);
+    return response.data;
+  } catch (error: any) {
+    console.log(error);
+    return error?.response?.data?.error;
+  }
+};
+export const deleteAccountService = async ({
+  data,
+}: {
+  data: AccountDeletion;
+}) => {
+  try {
+    const response = await apiSecured.post("/profile/delete", data);
     return response.data;
   } catch (error: any) {
     console.log(error);

@@ -22,51 +22,41 @@ import toast from "@originaltimi/rn-toast";
 import * as ImagePicker from "expo-image-picker";
 import { generateURL } from "@/utils/image-utils.utils";
 import { useUpdateAccountDetails } from "@/hooks/account-hooks.hooks";
+import { useUserStore } from "@/store/store";
 
 const EditAccount = () => {
   const router = useRouter();
   const [images, setImages] = useState<string[]>([]); // local preview URIs
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [profile, setUser] = useState<UserProfileR>(null!);
-
-  const fetchMe = async () => {
-    const response = await useGetProfile();
-    console.log(response);
-    setUser(response?.data);
-  };
+  const { user: profile } = useUserStore();
 
   useEffect(() => {
-  if (profile) {
-    setForm({
-      first_name: profile.first_name || "",
-      last_name: profile.last_name || "",
-      username: profile.username || "",
-      bio: profile.bio || "",
-      phone_number: profile.phone_number || "",
-      country: profile.country || "",
-      added_interests: [],
-      date_of_birth: profile.date_of_birth || "",
-      emergency_contact: profile.emergency_contact || "",
-      gender : profile?.gender || "",
-      home_address: profile.home_address || "",
-      profile_picture_id: "",
-      removed_interests: [],
-    });
-  }
-}, [profile]);
+    if (profile) {
+      setForm({
+        first_name: profile.first_name || "",
+        last_name: profile.last_name || "",
+        username: profile.username || "",
+        bio: profile.bio || "",
+        phone_number: profile.phone_number || "",
+        country: profile.country || "",
+        added_interests: [],
+        date_of_birth: profile.date_of_birth || "",
+        emergency_contact: profile.emergency_contact || "",
+        gender: profile?.gender || "",
+        home_address: profile.home_address || "",
+        profile_picture_id: "",
+        removed_interests: [],
+      });
+    }
+  }, [profile]);
 
-
-  useEffect(() => {
-    fetchMe();
-    console.log("SJSJ");
-  }, []);
 
   const [form, setForm] = useState<EditProfilePayload>({
     first_name: profile?.first_name || "",
     last_name: profile?.last_name || "",
     username: profile?.username || "",
-    bio:  profile?.bio || "",
+    bio: profile?.bio || "",
     phone_number: profile?.phone_number || "",
     country: profile?.country || "",
     added_interests: [],
@@ -124,42 +114,40 @@ const EditAccount = () => {
     }
   };
 
- const handleSave = async () => {
-  try {
-    setSaving(true);
+  const handleSave = async () => {
+    try {
+      setSaving(true);
 
-    let profilePictureId = form.profile_picture_id;
-    if (images.length > 0) {
-      const uploadedId = await uploadImage();
-      if (uploadedId) {
-        profilePictureId = uploadedId;
+      let profilePictureId = form.profile_picture_id;
+      if (images.length > 0) {
+        const uploadedId = await uploadImage();
+        if (uploadedId) {
+          profilePictureId = uploadedId;
+        }
       }
-    }
 
-    const result = await useUpdateAccountDetails({
-      data: { ...form, profile_picture_id: profilePictureId },
-    });
+      const result = await useUpdateAccountDetails({
+        data: { ...form, profile_picture_id: profilePictureId },
+      });
 
-    setSaving(false);
+      setSaving(false);
 
-    console.log(result, "REYEYEYEY");
+      console.log(result, "REYEYEYEY");
 
-    if (result && !result.error) {
-      Alert.alert("Success", "Account updated successfully!");
-    } else {
-      // Handle array or string error messages from API
-      const errorMessage =
-        Array.isArray(result?.message)
+      if (result && !result.error) {
+        Alert.alert("Success", "Account updated successfully!");
+      } else {
+        // Handle array or string error messages from API
+        const errorMessage = Array.isArray(result?.message)
           ? result.message.join("\n")
           : result?.message || "Failed to update account.";
-      Alert.alert("Error", errorMessage);
+        Alert.alert("Error", errorMessage);
+      }
+    } catch (err) {
+      setSaving(false);
+      Alert.alert("Error", "Something went wrong.");
     }
-  } catch (err) {
-    setSaving(false);
-    Alert.alert("Error", "Something went wrong.");
-  }
-};
-
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#f7f8fa" }}>
@@ -185,7 +173,7 @@ const EditAccount = () => {
                   ? { uri: images[0] }
                   : form.profile_picture_id
                   ? { uri: `https://your-cdn.com/${form.profile_picture_id}` }
-                  : {uri : generateURL({url : profile?.profile_picture?.url})}
+                  : { uri: generateURL({ url: profile?.profile_picture?.url || "" }) }
               }
               style={styles.avatar}
             />
@@ -230,7 +218,14 @@ const EditAccount = () => {
             Bio
           </ThemedText>
           <TextInput
-            style={[styles.input, { height: 70, textAlignVertical: "top" }]}
+            style={[
+              styles.input,
+              {
+                height: 70,
+                textAlignVertical: "top",
+                fontFamily: "Quicksand_500Medium",
+              },
+            ]}
             placeholder="Tell us about yourself"
             value={form.bio}
             onChangeText={(v) => handleChange("bio", v)}

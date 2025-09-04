@@ -1,90 +1,111 @@
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, TouchableOpacity } from "react-native";
 import React, { useState } from "react";
 import ThemedView, { ThemedText } from "../ui/themed-view";
-import { Call, Message2 } from "iconsax-react-native";
+import { router, Href } from "expo-router";
 import { COLORS } from "@/config/theme";
 import NativeButton from "../ui/native-button";
 import { UserProfileR } from "@/types/auth.types";
 import { generateURL } from "@/utils/image-utils.utils";
-import { Href, router } from "expo-router";
+import { useAddFriend, useUnFriend } from "@/hooks/friend-hooks.hooks";
 
 const FriendCompo = ({
   user,
-  isFriend,
+  isFriend: initialIsFriend,
 }: {
   user: UserProfileR;
   isFriend: boolean;
 }) => {
   const [imageError, setImageError] = useState(false);
+  const [isFriend, setIsFriend] = useState(initialIsFriend);
+  const [loading, setLoading] = useState(false);
+
+  const handleAddFriend = async () => {
+    try {
+      setLoading(true);
+      const response = await useAddFriend({ id: user?.id });
+      console.log("✅ Add friend response:", response);
+
+      if (response?.message === "Added to friends list") {
+        setIsFriend(true);
+      }
+    } catch (err) {
+      console.error("❌ Add friend error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveFriend = async () => {
+    try {
+      setLoading(true);
+      const response = await useUnFriend({ id: user?.id });
+      console.log("✅ Unfriend response:", response);
+
+      if (response?.message === "Removed from friends list") {
+        setIsFriend(false);
+      }
+    } catch (err) {
+      console.error("❌ Unfriend error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <TouchableOpacity onPress={()=>{
-      console.log(".....UUUUUU.")
-      router.push("/view-friends?id="+user?.id as Href)
-    }}>
-    <ThemedView
-      flexDirection="row"
-      justifyContent="space-between"
-      alignItems="center"
-      marginBottom={40}
+    <TouchableOpacity
+      onPress={() => {
+        router.push(("/view-friends?id=" + user?.id) as Href);
+      }}
     >
-      <ThemedView flexDirection="row" alignItems="center" gap={10}>
-        <Image
-          source={
-            imageError
-              ? require("@/assets/users.jpg")
-              : {
-                  uri: generateURL({ url: user?.profile_picture?.url }),
-                }
-          }
-          onError={() => setImageError(true)}
-          style={{
-            width: 45,
-            height: 45,
-            borderRadius: 200,
-          }}
-          resizeMode="cover"
-        />
-        <ThemedView>
-          <ThemedText fontSize={12} weight="bold">
-            {user?.username || "Username"}
-          </ThemedText>
-          <ThemedText>
-            {(user?.first_name &&
-              user?.last_name &&
-              `${user?.first_name} ${user?.last_name}`) ||
-              "Full name"}
-          </ThemedText>
+      <ThemedView
+        flexDirection="row"
+        justifyContent="space-between"
+        alignItems="center"
+        marginBottom={40}
+      >
+        {/* Profile Picture + Names */}
+        <ThemedView flexDirection="row" alignItems="center" gap={10}>
+          <Image
+            source={
+              imageError
+                ? require("@/assets/users.jpg")
+                : { uri: generateURL({ url: user?.profile_picture?.url }) }
+            }
+            onError={() => setImageError(true)}
+            style={{ width: 45, height: 45, borderRadius: 200 }}
+            resizeMode="cover"
+          />
+          <ThemedView>
+            <ThemedText fontSize={12} weight="bold">
+              {user?.username || "Username"}
+            </ThemedText>
+            <ThemedText>
+              {user?.first_name && user?.last_name
+                ? `${user?.first_name} ${user?.last_name}`
+                : "Full name"}
+            </ThemedText>
+          </ThemedView>
         </ThemedView>
-      </ThemedView>
 
-      {isFriend ? (
-        <ThemedView flexDirection="row" gap={10}>
-          <ThemedView
-            backgroundColor={COLORS.primary}
-            padding={10}
-            borderRadius={200}
-          >
-            <Message2 size={20} variant="Bold" color="#fff" />
-          </ThemedView>
-          <ThemedView
-            backgroundColor={COLORS.primary}
-            padding={10}
-            borderRadius={200}
-          >
-            <Call size={20} variant="Bold" color="#fff" />
-          </ThemedView>
-        </ThemedView>
-      ) : (
-        <NativeButton
-          mode="fill"
-          text={"Add Friend"}
-          style={{
-            paddingVertical: 10,
-          }}
-        />
-      )}
-    </ThemedView>
+        {/* Action Button */}
+        {isFriend ? (
+          <NativeButton
+            mode="fill"
+            text={loading ? "Removing..." : "Unfriend"}
+            onPress={handleRemoveFriend}
+            style={{ paddingVertical: 10 }}
+            disabled={loading}
+          />
+        ) : (
+          <NativeButton
+            mode="fill"
+            text={loading ? "Adding..." : "Add Friend"}
+            onPress={handleAddFriend}
+            style={{ paddingVertical: 10 }}
+            disabled={loading}
+          />
+        )}
+      </ThemedView>
     </TouchableOpacity>
   );
 };

@@ -17,25 +17,7 @@ const ProfileImageGrid: React.FC<ProfileImageGridProps> = ({
   posts,
   linkBase,
 }) => {
-  const [likes, setLikes] = useState<number[]>([]);
   const profile = useUserProfileStore((state) => state.profile);
-
-  useEffect(() => {
-    const fetchAllLikes = async () => {
-      const likesArr = await Promise.all(
-        posts.map(async (post) => {
-          try {
-            const response = await useGetAllLikes({ id: post.id });
-            return response?.data?.length || 0;
-          } catch {
-            return 0;
-          }
-        })
-      );
-      setLikes(likesArr);
-    };
-    if (posts.length > 0) fetchAllLikes();
-  }, [posts, profile?.id]);
 
   return (
     <ThemedView

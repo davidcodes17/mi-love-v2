@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { SafeAreaView, Image, TouchableOpacity } from "react-native";
+import { SafeAreaView, Image, TouchableOpacity, Platform } from "react-native";
 import globalStyles from "@/components/styles/global-styles";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import BackButton from "@/components/common/back-button";
@@ -14,12 +14,18 @@ import Animated, {
 } from "react-native-reanimated";
 import { LoginPayLoad } from "@/types/auth.types";
 import * as Yup from "yup";
-import { loginServiceProxy } from "@/hooks/auth-hooks.hooks";
+import {
+  loginServiceProxy,
+  useNotificationService,
+} from "@/hooks/auth-hooks.hooks";
 import { ValidationError } from "yup";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import toast from "@originaltimi/rn-toast";
 import { Link } from "expo-router";
+import * as Device from "expo-device";
+import * as Notifications from "expo-notifications";
+import Constants from "expo-constants";
 
 const loginSchema = Yup.object({
   email: Yup.string().email("Invalid email").required("Email is required"),
@@ -28,9 +34,59 @@ const loginSchema = Yup.object({
     .required("Password is required"),
 });
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
 const LoginScreen = () => {
   const [data, setData] = useState<LoginPayLoad>({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
+
+  const [expoPushToken, setExpoPushToken] = useState("");
+  const [channels, setChannels] = useState<Notifications.NotificationChannel[]>(
+    []
+  );
+  const [notification, setNotification] = useState<
+    Notifications.Notification | undefined
+  >(undefined);
+
+  useEffect(() => {
+    registerForPushNotificationsAsync().then(
+      (token) => token && setExpoPushToken(token)
+    );
+
+    if (Platform.OS === "android") {
+      Notifications.getNotificationChannelsAsync().then((value) =>
+        setChannels(value ?? [])
+      );
+    }
+    const notificationListener = Notifications.addNotificationReceivedListener(
+      (notification) => {
+        setNotification(notification);
+      }
+    );
+
+    const responseListener =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        console.log(response);
+      });
+
+    return () => {
+      notificationListener.remove();
+      responseListener.remove();
+    };
+  }, []);
+
+  const sendFcm = async () => {
+    const response = await useNotificationService({ token: expoPushToken });
+    console.log(response,"GETETE")
+  };
+
 
   const handleLogin = async () => {
     try {
@@ -53,6 +109,7 @@ const LoginScreen = () => {
         console.log(response);
         // e.g., navigate to dashboard
         await AsyncStorage.setItem("token", response?.access_token);
+        sendFcm();
         router.push("/home");
         return;
       } else {
@@ -128,8 +185,13 @@ const LoginScreen = () => {
             onChangeText={(e) => setData((prev) => ({ ...prev, password: e }))}
           />
 
-          <Link style={{marginTop : 20}} href={"/auth/forgot-password"}>
-            <ThemedText textAlign="right" fontSize={18} weight="semibold" marginTop={10}>
+          <Link style={{ marginTop: 20 }} href={"/auth/forgot-password"}>
+            <ThemedText
+              textAlign="right"
+              fontSize={18}
+              weight="semibold"
+              marginTop={10}
+            >
               Forgotten Password?
             </ThemedText>
           </Link>
@@ -175,3 +237,53 @@ const LoginScreen = () => {
 };
 
 export default LoginScreen;
+
+async function registerForPushNotificationsAsync() {
+  let token;
+
+  if (Platform.OS === "android") {
+    await Notifications.setNotificationChannelAsync("myNotificationChannel", {
+      name: "A channel is needed for the permissions prompt to appear",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: "#FF231F7C",
+    });
+  }
+
+  if (Device.isDevice) {
+    const { status: existingStatus } =
+      await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== "granted") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== "granted") {
+      alert("Failed to get push token for push notification!");
+      return;
+    }
+    // Learn more about projectId:
+    // https://docs.expo.dev/push-notifications/push-notifications-setup/#configure-projectid
+    // EAS projectId is used here.
+    try {
+      const projectId =
+        Constants?.expoConfig?.extra?.eas?.projectId ??
+        Constants?.easConfig?.projectId;
+      if (!projectId) {
+        throw new Error("Project ID not found");
+      }
+      token = (
+        await Notifications.getExpoPushTokenAsync({
+          projectId,
+        })
+      ).data;
+      console.log(token);
+    } catch (e) {
+      token = `${e}`;
+    }
+  } else {
+    alert("Must use physical device for Push Notifications");
+  }
+
+  return token;
+}

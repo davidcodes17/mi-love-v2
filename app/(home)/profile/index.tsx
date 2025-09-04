@@ -17,28 +17,18 @@ import ProfileImageGrid from "@/components/common/profile-image-grid";
 import { useGetAllPosts } from "@/hooks/post-hooks.hooks";
 import { Post } from "@/types/post.types";
 import { getAge } from "@/utils/age-utils.utils";
+import { useUserStore } from "@/store/store";
 
 export default function ProfileScreen() {
-  const [profile, setUser] = useState<UserProfileR>(null!);
   const [posts, setPosts] = useState<Post[]>([]);
-
-  const fetchMe = async () => {
-    const response = await useGetProfile();
-    console.log(response);
-    setUser(response?.data);
-  };
-
-  useEffect(() => {
-    fetchMe();
-    console.log("SJSJ");
-  }, []);
+  const { user: profile } = useUserStore();
 
   useEffect(() => {
     const fetchUserPosts = async () => {
       if (profile) {
         const response = await useGetAllPosts({
           data: {
-            filterBy: "",
+            filterBy: "my",
             filterValue: "",
             limit: "100",
             page: "1",
@@ -64,9 +54,11 @@ export default function ProfileScreen() {
         >
           <BackButton />
           <ThemedText weight="bold">{profile?.username || "-"}</ThemedText>
-          <TouchableOpacity onPress={()=>{
-            router.push("/settings")
-          }}>
+          <TouchableOpacity
+            onPress={() => {
+              router.push("/settings");
+            }}
+          >
             <ThemedView>
               <More variant="Outline" color="#000" size={30} />
             </ThemedView>
@@ -124,7 +116,12 @@ export default function ProfileScreen() {
                 </ThemedText>
               </ThemedView>
               <ThemedView>
-                <ThemedText textAlign="center" textTransform="capitalize" weight="medium" fontSize={20}>
+                <ThemedText
+                  textAlign="center"
+                  textTransform="capitalize"
+                  weight="medium"
+                  fontSize={20}
+                >
                   {profile?.gender || "N/A"}
                 </ThemedText>
                 <ThemedText textAlign="center" fontSize={15} color={"#aaa"}>

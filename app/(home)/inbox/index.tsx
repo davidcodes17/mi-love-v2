@@ -1,21 +1,62 @@
 import ChatCompo from "@/components/common/chat-compo";
 import globalStyles from "@/components/styles/global-styles";
-import NativeText from "@/components/ui/native-text";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import { COLORS } from "@/config/theme";
+import { useGetAllChats } from "@/hooks/chats.hooks";
+import { useUserStore } from "@/store/store";
+import { Chat, ChatResponse } from "@/types/chat.types";
 import { Message } from "iconsax-react-native";
-import { FlatList } from "react-native";
+import { useEffect, useState } from "react";
+import { FlatList, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const friendData = Array.from({ length: 12 }, (_, i) => ({ id: i.toString() }));
 export default function Page() {
+  const [data, setData] = useState<ChatResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchChats = async () => {
+    try {
+      if (!refreshing) setLoading(true); // don't show footer spinner on pull refresh
+      const response = await useGetAllChats(); // <- ensure this returns ChatResponse
+      setData(response);
+    } catch (error) {
+      console.error("Failed to fetch chats:", error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchChats();
+  }, []);
+
+  const currentUserId = "123"; // 🔑 TODO: replace with actual logged-in userId from auth state
+  const { user, updateUser, clearUser } = useUserStore();
+
+  console.log("S");
+
   return (
     <SafeAreaView style={globalStyles.wrapper}>
       <ThemedView padding={20}>
         <FlatList
-          data={friendData}
-          keyExtractor={(item) => item.id}
-          renderItem={() => <ChatCompo />}
+          data={data?.data || []}
+          keyExtractor={(item: Chat) => item.id}
+          renderItem={({ item }) => (
+            <ChatCompo chat={item} currentUserId={currentUserId} />
+          )}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                fetchChats();
+              }}
+              colors={[COLORS.primary]} // Android
+              tintColor={COLORS.primary} // iOS
+            />
+          }
           ListHeaderComponent={() => (
             <ThemedView
               alignItems="center"
@@ -30,6 +71,22 @@ export default function Page() {
               </ThemedText>
             </ThemedView>
           )}
+          ListEmptyComponent={() =>
+            !loading && (
+              <ThemedText textAlign="center" marginTop={40}>
+                No chats yet
+              </ThemedText>
+            )
+          }
+          ListFooterComponent={() =>
+            loading && !refreshing ? (
+              <ActivityIndicator
+                size="small"
+                color={COLORS.primary}
+                style={{ marginTop: 20 }}
+              />
+            ) : null
+          }
         />
       </ThemedView>
     </SafeAreaView>

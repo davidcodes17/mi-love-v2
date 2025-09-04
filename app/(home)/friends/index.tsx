@@ -1,48 +1,55 @@
-import React, { useEffect, useState } from "react";
-import { FlatList, View, ActivityIndicator, RefreshControl } from "react-native";
+import React, { useEffect, useState, useCallback } from "react";
+import {
+  FlatList,
+  View,
+  ActivityIndicator,
+  RefreshControl,
+} from "react-native";
 import FriendCompo from "@/components/common/friend-compo";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "@/config/theme";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import globalStyles from "@/components/styles/global-styles";
 import { Profile2User } from "iconsax-react-native";
-import { FriendsListResponse } from "@/types/friend.types";
+import { FriendsListResponse, FilterBy } from "@/types/friend.types";
 import { useGetAllFriends } from "@/hooks/friend-hooks.hooks";
-import { FilterBy } from "@/types/friend.types";
 
 export default function Page() {
   const [friends, setFriends] = useState<FriendsListResponse | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [filterBy, setFilterBy] = useState<FilterBy>({ filterBy: "friends" });
+  const [loading, setLoading] = useState<boolean>(true); // start with loading true
+  const [filterBy] = useState<FilterBy>({ filterBy: "friends" });
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchFriends = async () => {
+  const fetchFriends = useCallback(async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (!isRefresh) setLoading(true);
       const response = await useGetAllFriends({ filterBy });
       setFriends(response || null);
     } catch (error) {
       console.error("Failed to fetch friends:", error);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (isRefresh) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
-  };
+  }, [filterBy]);
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
-    await fetchFriends();
-  };
+    fetchFriends(true);
+  }, [fetchFriends]);
 
   useEffect(() => {
     fetchFriends();
-  }, []);
+  }, [fetchFriends]);
 
   return (
     <SafeAreaView style={globalStyles.wrapper}>
       {loading ? (
         <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="small" color={COLORS.primary} />
         </View>
       ) : (
         <FlatList

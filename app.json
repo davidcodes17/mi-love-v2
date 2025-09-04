@@ -10,7 +10,11 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.dating.milove"
+      "bundleIdentifier": "com.dating.milove",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "We need your location to show nearby services.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "permissions": [

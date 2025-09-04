@@ -74,8 +74,19 @@ export interface EditProfilePayload {
   emergency_contact: string;
   date_of_birth: string; // ISO date string, e.g., "1990-05-15"
   home_address: string;
-  gender: string,
+  gender: string;
   bio: string;
   added_interests: string[];
   removed_interests: string[];
+}
+
+export interface PanicButtonPayload {
+  reason: string;
+  latitude: number;
+  longitude: number;
+}
+
+export interface AccountDeletion {
+  token: string;
+  password: string;
 }

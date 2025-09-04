@@ -34,7 +34,7 @@ const InputField = ({
             padding: 10,
             width: "100%",
             borderRadius: 10,
-            fontSize: 18,
+            fontSize: 15,
             fontFamily: "Quicksand_500Medium",
           }}
           {...props}

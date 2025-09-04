@@ -71,11 +71,6 @@ const Settings = () => {
       onPress: () => router.push("/(settings)/wallet" as Href),
     },
     {
-      label: "Gift Wallet",
-      icon: <Gift size={22} color={COLORS.primary} variant="Bold" />,
-      onPress: () => router.push("/(settings)/gift" as Href),
-    },
-    {
       label: "Logout",
       icon: <LogoutCurve size={22} color={COLORS.primary} variant="Bold" />,
       onPress: handleLogout,

@@ -13,7 +13,7 @@ export const getAllStatus = async () => {
 
 export const getMyStatus = async () => {
   try {
-    const response = await apiSecured.get(`/status/my`);
+    const response = await apiSecured.get(`/status/me`);
     return response.data;
   } catch (error: any) {
     console.log(error);

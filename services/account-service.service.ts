@@ -1,5 +1,5 @@
 import apiSecured from "@/security/api-secured";
-import { EditProfilePayload } from "@/types/auth.types";
+import { EditProfilePayload, PanicButtonPayload } from "@/types/auth.types";
 
 export const deleteAccountService = async ({
   password,
@@ -45,5 +45,15 @@ export const updateProfileService = async ({
   } catch (error: any) {
     console.error(error);
     return error?.response?.data;
+  }
+};
+
+export const initiatePanicButton = async ({ data }: { data: PanicButtonPayload }) => {
+  try {
+    const response = await apiSecured.post("/emergencies/panic", data);
+    return response.data;
+  } catch (error: any) {
+    console.log(error);
+    return error?.response?.data?.error;
   }
 };

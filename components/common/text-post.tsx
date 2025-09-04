@@ -15,7 +15,7 @@ import { useUserProfileStore } from "@/hooks/auth-hooks.hooks";
 const TextPost: React.FC<PostProps> = ({ post }) => {
   const [expanded, setExpanded] = useState(false);
   const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
+  const [likeCount, setLikeCount] = useState(post?._count?.likes || 0);
   const [profileImageLoading, setProfileImageLoading] = useState(true);
   const profile = useUserProfileStore((state) => state.profile);
 
@@ -24,29 +24,15 @@ const TextPost: React.FC<PostProps> = ({ post }) => {
       ? post?.content.slice(0, 150) + "..."
       : post?.content;
 
-  useEffect(() => {
-    const fetchLikes = async () => {
-      const response = await useGetAllLikes({ id: post.id });
-      setLikeCount(response?.data?.length || 0);
-      
-      // Check if current user has already liked this post
-      if (response?.data && profile?.id) {
-        const userLiked = response.data.some((like: any) => like.userId === profile.id);
-        setLiked(userLiked);
-      }
-    };
-    fetchLikes();
-  }, [post.id, profile?.id]);
-
   const handleLike = async () => {
     if (liked) {
+      setLikeCount((c) => c - 1);
       await useUnlikePost({ id: post.id });
       setLiked(false);
-      setLikeCount((c) => c - 1);
     } else {
+      setLikeCount((c) => c + 1);
       await useLikePost({ id: post.id });
       setLiked(true);
-      setLikeCount((c) => c + 1);
     }
   };
 
@@ -163,6 +149,7 @@ const TextPost: React.FC<PostProps> = ({ post }) => {
                 color={liked ? COLORS.primary : "#666"}
                 variant={liked ? "Bold" : "Outline"}
               />
+              <ThemedText fontSize={15}>{likeCount}</ThemedText>
             </ThemedView>
           </TouchableOpacity>
         </ThemedView>

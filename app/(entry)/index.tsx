@@ -17,6 +17,7 @@ import { useRouter } from "expo-router";
 import globalStyles from "@/components/styles/global-styles";
 import NativeButton from "@/components/ui/native-button";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const Onboarding = () => {
   const router = useRouter();
@@ -44,7 +45,22 @@ const Onboarding = () => {
     opacity: textOpacity.value,
   }));
 
-  const height = Dimensions.get("screen").height+10;
+  const height = Dimensions.get("screen").height + 10;
+
+  useEffect(() => {
+    const checkToken = async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+        if (token) {
+          router.push("/auth/login");
+        }
+      } catch (err) {
+        console.error("Error checking token:", err);
+      }
+    };
+
+    checkToken();
+  }, []);
 
   return (
     <SafeAreaView style={globalStyles.wrapper}>

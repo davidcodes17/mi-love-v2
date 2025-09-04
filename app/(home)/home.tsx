@@ -2,8 +2,6 @@ import { FlatList, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { useEffect } from "react";
-
-import { toast } from "@/components/lib/toast-manager";
 import globalStyles from "@/components/styles/global-styles";
 import Header from "@/layouts/header";
 import ThemedView from "@/components/ui/themed-view";
@@ -13,6 +11,7 @@ import Posts from "@/layouts/posts";
 import React, { useState, useCallback, useRef } from "react";
 import { router } from "expo-router";
 import { useGetProfile, useUserProfileStore } from "@/hooks/auth-hooks.hooks";
+import { useUserStore } from "@/store/store";
 
 export default function HomeScreen() {
   const components = ["header", "status", "interests", "posts"];
@@ -20,30 +19,35 @@ export default function HomeScreen() {
   const postsRef = useRef<any>(null);
   const setProfile = useUserProfileStore((state) => state.setProfile);
   const profile = useUserProfileStore((state) => state.profile);
+  const { updateUser,setUser } = useUserStore();
 
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!profile) {
-        try {
-          const data = await useGetProfile();
-          if (data) setProfile(data);
-        } catch (e) {
-          // Optionally handle error
+      try {
+        const data = await useGetProfile(); // make sure this is an API call function
+        console.log("Fetched profile:", data?.data);
+
+        if (data?.data) {
+          setProfile(data?.data); // Zustand store
+          setUser(data?.data); // Another store
         }
+      } catch (e) {
+        console.error("Error fetching profile:", e);
       }
     };
+
     fetchProfile();
-  }, [profile, setProfile]);
+  }, []); // run once on mount
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-  
+
     try {
       await postsRef.current?.refresh();
     } catch (e) {
       console.error("Failed to refresh posts:", e);
     }
-  
+
     setRefreshing(false);
   }, []);
   const renderComponent = ({
@@ -59,8 +63,8 @@ export default function HomeScreen() {
       case "header":
         Component = Header;
         break;
-      case "status":
-        Component = StatusSide;
+        // case "status":
+        //   Component = StatusSide;
         break;
       case "interests":
         Component = Interests;

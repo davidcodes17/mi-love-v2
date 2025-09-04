@@ -2,11 +2,18 @@ import apiSecured from "@/security/api-secured";
 
 export const getAllFriends = async ({
   filterBy,
+  filterValue,
 }: {
   filterBy: "blocked" | "friends" | "explore";
+  filterValue?: string;
 }) => {
   try {
-    const response = await apiSecured.get(`/friends?filterBy=${filterBy}`);
+    const response = await apiSecured.get(`/friends`, {
+      params: {
+        filterBy,
+        filterValue,
+      },
+    });
     return response.data;
   } catch (error: any) {
     console.log(error);

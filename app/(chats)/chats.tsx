@@ -1,96 +1,236 @@
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Image,
   SafeAreaView,
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  FlatList,
   View,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
-import React from "react";
+import { Add, Alarm, Gift, Send2 } from "iconsax-react-native";
+import { useLocalSearchParams } from "expo-router";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
-import { Add, ArrowLeft2, Call, Send2, Video } from "iconsax-react-native";
 import { COLORS } from "@/config/theme";
-import { Href, router } from "expo-router";
+import { ChatMessage } from "@/types/chat.types";
+import { HeaderChat } from "@/components/common/chats/header-chat";
+import { io, Socket } from "socket.io-client";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useGetChatsPerFriend } from "@/hooks/chats.hooks";
+import ChatPanicButton from "@/components/common/chats/panic-button-icon";
+import { toast } from "@/components/lib/toast-manager";
+import NativeButton from "@/components/ui/native-button";
+import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 
+/* ---------------- Main Chats Component ---------------- */
 const Chats = () => {
+  const { chatId, name, profileUrl, userId } = useLocalSearchParams<{
+    chatId: string;
+    userId: string;
+    profileUrl: string;
+    name?: string;
+  }>();
+
+  const currentUserId = userId;
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const socketRef = useRef<Socket | null>(null);
+
+  /* Fetch messages from API */
+  const fetchMessages = async () => {
+    const response = await useGetChatsPerFriend({ id: chatId });
+    setMessages(response?.data || []);
+  };
+
+  useEffect(() => {
+    fetchMessages();
+  }, []);
+
+  /* Setup socket connection */
+  useEffect(() => {
+    const setupSocket = async () => {
+      const token = await AsyncStorage.getItem("token");
+      if (!token) return;
+
+      const socket = io("https://ttznxdxb-9999.uks1.devtunnels.ms/chat", {
+        transports: ["websocket"],
+        extraHeaders: { Authorization: `Bearer ${token}` },
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+      });
+
+      socketRef.current = socket;
+
+      socket.on("connect", () => {
+        console.log("✅ Connected to chat server:", socket.id);
+      });
+
+      socket.on("error", (data) => {
+        toast.show({
+          title: data?.message || "An error occurred",
+          type: "error",
+          duration: 2000,
+        });
+        console.log("⚠️ Socket error:", data);
+        fetchMessages();
+      });
+
+      socket.on("connect_error", (err) => {
+        console.log("❌ Connection error:", err.message);
+      });
+
+      socket.on("disconnect", (reason) => {
+        console.log("❌ Disconnected:", reason);
+      });
+
+      socket.on("private-message", (data) => {
+        console.log("📩 New message:", data);
+        setMessages((prev) => [
+          ...prev,
+          { ...data, id: Date.now().toString() },
+        ]);
+      });
+    };
+
+    setupSocket();
+
+    return () => {
+      socketRef.current?.disconnect();
+    };
+  }, []);
+
+  /* Handle sending */
+  const handleSend = (msg: string) => {
+    if (!socketRef.current) return;
+
+    socketRef.current.emit(
+      "private-message",
+      {
+        toUserId: userId,
+        message: msg,
+      },
+      (response: { status: string; message?: string }) => {
+        if (response.status === "ok") {
+          console.log("✅ Message delivered successfully!");
+        } else {
+          console.log("❌ Message failed:", response.message);
+        }
+      }
+    );
+
+    // Optimistic UI update
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        type: "text",
+        content: msg,
+        edited: false,
+        deleted: false,
+        fileId: null,
+        userId: currentUserId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        chatId,
+        user: null,
+        file: null,
+      },
+    ]);
+  };
+
+  const bottomSheetRef = useRef<BottomSheet>(null);
+
+  // callbacks
+  const handleSheetChanges = useCallback((index: number) => {
+    console.log("handleSheetChanges", index);
+  }, []);
+
   return (
     <SafeAreaView style={styles.container}>
-      <HeaderChat />
-    
-        <ChatInput />
+      <HeaderChat profileUrl={profileUrl} name={name} />
+
+      <FlatList
+        data={messages}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.messagesList}
+        renderItem={({ item }) => (
+          <MessageBubble item={item} currentUserId={currentUserId} />
+        )}
+      />
+
+      <NativeButton mode="fill" text={"Open"} />
+      <BottomSheet
+        ref={bottomSheetRef}
+        onChange={handleSheetChanges}
+      >
+        <BottomSheetView style={styles.contentContainer}>
+          <ThemedText>Awesome 🎉</ThemedText>
+        </BottomSheetView>
+      </BottomSheet>
+      <ChatInput onSend={handleSend} />
     </SafeAreaView>
   );
 };
 
-export default Chats;
+/* ---------------- Message Bubble ---------------- */
+const MessageBubble = ({
+  item,
+  currentUserId,
+}: {
+  item: ChatMessage;
+  currentUserId: string;
+}) => {
+  const isMe = item.userId === currentUserId;
 
-// Header
-const HeaderChat = () => {
-  return (
-    <ThemedView
-      flexDirection="row"
-      alignItems="center"
-      justifyContent="space-between"
-      paddingHorizontal={12}
-      paddingVertical={10}
-      borderBottomWidth={1}
-      borderBottomColor="#eee"
-      backgroundColor="#fff"
-    >
-
-      {/* User Info */}
-      <ThemedView flexDirection="row" alignItems="center" flexShrink={1}>
-      {/* Back button */}
-      <TouchableOpacity style={{ marginRight: 10 }}>
-        <ArrowLeft2 size={30} color="#000" />
-      </TouchableOpacity>
-        <Image
-          source={{
-            uri: "https://img.freepik.com/free-vector/smiling-redhaired-boy-illustration_1308-176664.jpg?semt=ais_hybrid&w=740",
-          }}
-          style={styles.userImage}
-        />
-        <ThemedView marginLeft={10}>
-          <ThemedText fontSize={16} fontWeight="600" color="#000">
-            Areegbe David
-          </ThemedText>
-          <ThemedText fontSize={12} color="#666">
-            Last seen 2 mins ago
-          </ThemedText>
-        </ThemedView>
-      </ThemedView>
-
-      {/* Call / Video Icons */}
+  // 🎯 Render announcement differently
+  if (item.type === "announcement") {
+    return (
       <ThemedView
+        padding={12}
+        marginVertical={6}
+        marginHorizontal={30}
+        borderRadius={12}
+        backgroundColor={COLORS.primary + "20"}
         flexDirection="row"
         alignItems="center"
-        justifyContent="flex-end"
-        gap={10}
-        marginLeft={10}
+        justifyContent="center"
+        gap={8}
       >
-        <TouchableOpacity onPress={()=>{
-          console.log("CLicked")
-          router.push("/(chats)/call" as Href)
-        }}>
-          <Call color={COLORS.primary} size={30} variant="Broken" />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={()=>{
-          console.log("CLicked Video")
-          const channelId = 'chatroom123';
-          router.push(`/video-call?channel=${channelId}` as Href);
-        }}>
-          <Video color={COLORS.primary} size={30} variant="Broken" />
-        </TouchableOpacity>
+        <Alarm size={18} color={COLORS.primary} variant="Bold" />
+        <ThemedText
+          fontSize={14}
+          textAlign="center"
+          color={COLORS.primary}
+          fontWeight="600"
+        >
+          {item.content}
+        </ThemedText>
       </ThemedView>
-    </ThemedView>
+    );
+  }
+
+  // 🗨️ Normal message bubble
+  return (
+    <View
+      style={[
+        styles.messageBubble,
+        isMe ? styles.myMessage : styles.otherMessage,
+      ]}
+    >
+      <ThemedText color={isMe ? "#fff" : "#000"}>{item.content}</ThemedText>
+    </View>
   );
 };
 
+/* ---------------- Chat Input ---------------- */
+const ChatInput = ({ onSend }: { onSend: (msg: string) => void }) => {
+  const [text, setText] = useState("");
 
-// Chat Input
-const ChatInput = () => {
+  const handlePress = () => {
+    if (text.trim()) {
+      onSend(text.trim());
+      setText("");
+    }
+  };
+
   return (
     <ThemedView
       flexDirection="row"
@@ -104,52 +244,62 @@ const ChatInput = () => {
       backgroundColor="#fafafa"
       gap={10}
     >
-      <TouchableOpacity>
-        <Add size={30} color={COLORS.primary} />
-      </TouchableOpacity>
+      <ChatPanicButton />
 
       <TextInput
-        style={styles.input}
         placeholder="Type a message..."
         placeholderTextColor="#888"
+        value={text}
+        onChangeText={setText}
+        style={styles.textInput}
       />
 
-      <TouchableOpacity style={{
-        backgroundColor : COLORS.primary,
-        padding : 10,
-        flexDirection : "row",
-        alignItems : "center",
-        borderRadius : 400
-      }}>
-        <Send2 size={20} color="white" />
+      <TouchableOpacity style={styles.sendButton} onPress={handlePress}>
+        <Gift size={20} color="#fff" />
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.sendButton} onPress={handlePress}>
+        <Send2 size={20} color="#fff" />
       </TouchableOpacity>
     </ThemedView>
   );
 };
 
+/* ---------------- Styles ---------------- */
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: "#fff" },
+  messagesList: { padding: 16, paddingBottom: 100 },
+
+  messageBubble: {
+    padding: 10,
+    marginVertical: 5,
+    borderRadius: 10,
+    maxWidth: "80%",
+  },
+  myMessage: { alignSelf: "flex-end", backgroundColor: COLORS.primary },
+  otherMessage: { alignSelf: "flex-start", backgroundColor: "#eee" },
+
+  textInput: {
     flex: 1,
+    fontSize: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 200,
+    color: "#000",
     backgroundColor: "#fff",
-    position : 'relative'
-  },
-  userImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 20,
-    borderWidth : 0.2,
-    borderColor : "#ddd",
-    padding : 3
-  },
-  input: {
-    flex: 1,
+    fontFamily: "Quicksand_500Medium",
     borderWidth: 0.3,
     borderColor: "#ddd",
-    borderRadius: 30,
-    paddingVertical: 12,
-    fontFamily: "Quicksand_400Regular",
-    paddingHorizontal: 15,
-    fontSize: 15,
-    backgroundColor: "#fff",
   },
+  sendButton: {
+    backgroundColor: COLORS.primary,
+    padding: 10,
+    borderRadius: 400,
+  },
+   contentContainer: {
+    flex: 1,
+    padding: 36,
+    alignItems: 'center',
+  }
 });
+
+export default Chats;
