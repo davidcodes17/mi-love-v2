@@ -18,7 +18,7 @@ const BackButton = () => {
         borderRadius={10}
         alignSelf="flex-start"
       >
-        <ArrowLeft2 size={20} color="#000" />
+        <ArrowLeft2 size={20} color="#aaa" />
       </ThemedView>
     </Pressable>
   );

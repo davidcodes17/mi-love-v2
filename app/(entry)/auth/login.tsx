@@ -188,7 +188,7 @@ const LoginScreen = () => {
           <Link style={{ marginTop: 20 }} href={"/auth/forgot-password"}>
             <ThemedText
               textAlign="right"
-              fontSize={18}
+              fontSize={15}
               weight="semibold"
               marginTop={10}
             >
@@ -204,7 +204,7 @@ const LoginScreen = () => {
             disabled={loading}
           />
 
-          <ThemedText paddingVertical={20} textAlign="center">
+          {/* <ThemedText paddingVertical={20} textAlign="center">
             Or
           </ThemedText>
 
@@ -229,7 +229,7 @@ const LoginScreen = () => {
               />
               <ThemedText fontSize={15}>Sign In with Google</ThemedText>
             </ThemedView>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </ThemedView>
       </Animated.View>
     </SafeAreaView>

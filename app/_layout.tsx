@@ -17,7 +17,7 @@ import {
   Quicksand_700Bold,
 } from "@expo-google-fonts/quicksand";
 import { ToastProvider } from "@originaltimi/rn-toast";
-import { KeyboardAvoidingView, Platform, useColorScheme } from "react-native";
+import { useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 
@@ -40,9 +40,7 @@ export default function RootLayout() {
     }
   }, [loaded]);
 
-  if (!loaded) {
-    return null;
-  }
+  if (!loaded) return null;
 
   const LightTheme = {
     ...DefaultTheme,
@@ -53,56 +51,32 @@ export default function RootLayout() {
   } satisfies ReactNavigation.Theme;
 
   return (
-    <GestureHandlerRootView style={{
-      height : '100%',
-      flex : 1
-    }}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <BottomSheetModalProvider>
         <ThemeProvider value={colorScheme === "dark" ? DarkTheme : LightTheme}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            // keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
-            style={{ flex: 1 }}
+          <ToastProvider
+            config={{
+              duration: 4000,
+              position: "bottom",
+              stack: true,
+            }}
           >
-            <ToastProvider
-              config={{
-                duration: 4000,
-                position: "bottom",
-                stack: true,
-              }}
-            >
-              <Stack>
-                <Stack.Screen name="(home)" options={{ headerShown: false }} />
-                <Stack.Screen
-                  name="(status)"
-                  options={{ headerShown: false }}
-                />
-                <Stack.Screen
-                  name="(search)"
-                  options={{ headerShown: false }}
-                />
-                <Stack.Screen
-                  name="(chats)"
-                  options={{ headerShown: false }}
-                />
-                <Stack.Screen
-                  name="(notifications)"
-                  options={{ headerShown: false }}
-                />
-                <Stack.Screen
-                  name="(settings)"
-                  options={{ headerShown: false }}
-                />
-                <Stack.Screen
-                  name="(friends)"
-                  options={{ headerShown: false }}
-                />
-                <Stack.Screen name="(entry)" options={{ headerShown: false }} />
-                <Stack.Screen name="+not-found" />
-              </Stack>
-              <StatusBar style="auto" />
-            </ToastProvider>
-          </KeyboardAvoidingView>
+            <Stack>
+              <Stack.Screen name="(home)" options={{ headerShown: false }} />
+              <Stack.Screen name="(status)" options={{ headerShown: false }} />
+              <Stack.Screen name="(search)" options={{ headerShown: false }} />
+              <Stack.Screen name="(chats)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="(notifications)"
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen name="(settings)" options={{ headerShown: false }} />
+              <Stack.Screen name="(friends)" options={{ headerShown: false }} />
+              <Stack.Screen name="(entry)" options={{ headerShown: false }} />
+              <Stack.Screen name="+not-found" />
+            </Stack>
+            <StatusBar style="auto" />
+          </ToastProvider>
         </ThemeProvider>
       </BottomSheetModalProvider>
     </GestureHandlerRootView>

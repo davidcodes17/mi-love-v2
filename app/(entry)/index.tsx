@@ -1,6 +1,5 @@
 import React, { useEffect } from "react";
 import {
-  Dimensions,
   Image,
   SafeAreaView,
   ScrollView,
@@ -45,8 +44,6 @@ const Onboarding = () => {
     opacity: textOpacity.value,
   }));
 
-  const height = Dimensions.get("screen").height + 10;
-
   useEffect(() => {
     const checkToken = async () => {
       try {
@@ -63,23 +60,23 @@ const Onboarding = () => {
   }, []);
 
   return (
-    <SafeAreaView style={globalStyles.wrapper}>
+    <SafeAreaView style={[globalStyles.wrapper, { flex: 1, paddingTop : 30 }]}>
       <ScrollView
-        style={{
-          height: height,
-        }}
+        contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingBottom : 40 }}
+        style={{ flex: 1 }} 
+        showsVerticalScrollIndicator={false}
       >
         <View style={{ flex: 1 }}>
-          <Animated.View style={[logoStyle]}>
+          <Animated.View style={logoStyle}>
             <ThemedView
-              flexDirection={"row"}
+              flexDirection="row"
               gap={10}
-              alignItems={"center"}
-              justifyContent={"center"}
+              alignItems="center"
+              justifyContent="center"
             >
               <Image
                 source={require("@/assets/images/onboarding/icon.png")}
-                style={{ width: 50, height: 50, alignSelf: "center" }}
+                style={{ width: 50, height: 50, alignSelf: "center", borderRadius : 200 }}
               />
               <ThemedText weight="medium" fontSize={25}>
                 Mi Love
@@ -87,26 +84,28 @@ const Onboarding = () => {
             </ThemedView>
           </Animated.View>
 
-          <ThemedView justifyContent="center" flex={1} height={"100%"}>
+          <ThemedView justifyContent="center" flex={1} padding={20}>
             <Animated.Image
-              source={require("@/assets/images/hands.png")}
+              source={require("@/assets/pic.jpg")}
               style={[
                 {
                   width: "100%",
-                  height: 500,
+                  height: 400,
+                  borderRadius : 30,
                   alignSelf: "center",
                 },
                 imageStyle,
               ]}
-              // resizeMode="contain"
+              resizeMode="cover"
             />
 
-            <Animated.View style={[textStyle]}>
+            <Animated.View style={textStyle}>
               <ThemedText
                 fontSize={10}
                 marginBottom={-10}
+                paddingTop={20}
                 weight="medium"
-                textAlign={"center"}
+                textAlign="center"
               >
                 Set up your profile in minutes and let your personality shine.
               </ThemedText>
@@ -115,7 +114,7 @@ const Onboarding = () => {
                 weight="bold"
                 padding={10}
                 fontSize={45}
-                textAlign={"center"}
+                textAlign="center"
               >
                 Match. Chat. Connect.
               </ThemedText>
@@ -127,15 +126,15 @@ const Onboarding = () => {
                 justifyContent="center"
               >
                 <NativeButton
-                  href={"/auth/login"}
+                  href="/auth/login"
                   style={{ width: "40%", borderRadius: 100 }}
-                  text={"Login"}
+                  text="Login"
                   mode="fill"
                 />
                 <NativeButton
-                  href={"/auth/create-account"}
+                  href="/auth/create-account"
                   style={{ width: "40%", borderRadius: 100 }}
-                  text={"Create Account"}
+                  text="Create Account"
                   mode="outline"
                 />
               </ThemedView>

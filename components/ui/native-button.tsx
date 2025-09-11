@@ -71,16 +71,10 @@ const NativeButton = (props: NativeButtonProps) => {
           {children || (
             <NativeText
               style={[
-                mode == "fill"
-                  ? {
-                      color: "#fff",
-                    }
-                  : {},
-                mode == "outline"
-                  ? {
-                      color: COLORS.primary,
-                    }
-                  : {},
+                { fontSize: 12 },
+                mode === "fill" && { color: "#fff" },
+                mode === "outline" && { color: COLORS.primary },
+                textOptions?.style,
               ]}
               {...textOptions}
             >

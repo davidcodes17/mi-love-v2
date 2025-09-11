@@ -1,5 +1,5 @@
 import apiSecured from "@/security/api-secured";
-import { GeneratePaymentLinkPayLoad } from "@/types/wallet.types";
+import { GeneratePaymentLinkPayLoad, SendGiftPayload } from "@/types/wallet.types";
 
 export const getWalletService = async () => {
   try {
@@ -19,6 +19,15 @@ export const fetchTranscationsWallet = async () => {
     return error?.response?.data?.error;
   }
 };
+export const fetchAllGifts = async () => {
+  try {
+    const response = await apiSecured.get(`/wallet/gifts`);
+    return response.data;
+  } catch (error: any) {
+    console.log(error);
+    return error?.response?.data?.error;
+  }
+};
 export const generatePaymentLink = async ({
   data,
 }: {
@@ -32,5 +41,21 @@ export const generatePaymentLink = async ({
   } catch (error: any) {
     console.log(error);
     return error?.response?.data?.error;
+  }
+};
+export const sendGift = async ({
+  data,
+}: {
+  data: SendGiftPayload;
+}) => {
+  try {
+    const response = await apiSecured.post(`/wallet/gifts/send`, {
+      giftId : data?.giftId,
+      receiverId : data?.receiverId
+    });
+    return response.data;
+  } catch (error: any) {
+    console.log(error);
+    return error?.response?.data;
   }
 };
