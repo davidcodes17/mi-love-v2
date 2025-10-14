@@ -6,36 +6,48 @@ import { useGetAllChats } from "@/hooks/chats.hooks";
 import { useUserStore } from "@/store/store";
 import { Chat, ChatResponse } from "@/types/chat.types";
 import { Message } from "iconsax-react-native";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FlatList, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "expo-router"; // ✅ Expo Router version
 
 export default function Page() {
   const [data, setData] = useState<ChatResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchChats = async () => {
+  const { user } = useUserStore();
+
+  const fetchChats = async (showMainLoader = true) => {
     try {
-      if (!refreshing) setLoading(true); // don't show footer spinner on pull refresh
-      const response = await useGetAllChats(); // <- ensure this returns ChatResponse
+      if (showMainLoader) setLoading(true);
+      const response = await useGetAllChats();
       setData(response);
     } catch (error) {
-      console.error("Failed to fetch chats:", error);
+      console.error("❌ Failed to fetch chats:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
+  // ✅ Fetch once on mount
   useEffect(() => {
     fetchChats();
   }, []);
 
-  const currentUserId = "123"; // 🔑 TODO: replace with actual logged-in userId from auth state
-  const { user, updateUser, clearUser } = useUserStore();
+  // ✅ Re-fetch every time the page regains focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchChats(false); // no main loader, just refresh silently
+    }, [])
+  );
 
-  console.log("S");
+  // ✅ Pull to refresh
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchChats(false);
+  }, []);
 
   return (
     <SafeAreaView style={globalStyles.wrapper}>
@@ -44,15 +56,12 @@ export default function Page() {
           data={data?.data || []}
           keyExtractor={(item: Chat) => item.id}
           renderItem={({ item }) => (
-            <ChatCompo chat={item} currentUserId={currentUserId} />
+            <ChatCompo chat={item} currentUserId={user?.id ?? ""} />
           )}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                fetchChats();
-              }}
+              onRefresh={onRefresh}
               colors={[COLORS.primary]} // Android
               tintColor={COLORS.primary} // iOS
             />
