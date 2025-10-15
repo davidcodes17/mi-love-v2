@@ -10,7 +10,7 @@ import React, { useEffect, useState } from "react";
 import ThemedView, { ThemedText } from "../ui/themed-view";
 import { COLORS } from "@/config/theme";
 import { Heart } from "iconsax-react-native";
-import { PostProps } from "@/types/post.types";
+import { LikesResponse, PostProps, PostUser } from "@/types/post.types";
 import { generateURL } from "@/utils/image-utils.utils";
 import { useGetProfile } from "@/hooks/auth-hooks.hooks";
 import {
@@ -34,10 +34,11 @@ const Post: React.FC<PostProps> = ({ post }) => {
   const [user, setUser] = useState<UserProfileR>(null!);
   const [isFriend, setIsFriend] = useState(false);
   const [currentImage, setCurrentImage] = useState(0);
+  const [likesResponse, setLikesResponse] = useState<LikesResponse>(null!);
   const handleScroll = (event: any) => {
     const index = Math.round(
       event.nativeEvent.contentOffset.x /
-        event.nativeEvent.layoutMeasurement.width
+      event.nativeEvent.layoutMeasurement.width
     );
     setCurrentImage(index);
   };
@@ -74,8 +75,13 @@ const Post: React.FC<PostProps> = ({ post }) => {
       const res = await useGetAllLikes({ id: post.id });
       const likes = res?.data || [];
       setLikeCount(likes.length);
+      setLikesResponse(res);
+
+      // ✅ fix detection logic
       if (user?.id) {
-        const userLiked = likes.some((like: any) => like.userId === user.id);
+        const userLiked = likes.some(
+          (like: PostUser) => like?.id === user.id // use nested user.id if backend returns user object
+        );
         setLiked(userLiked);
       }
     };
@@ -83,6 +89,7 @@ const Post: React.FC<PostProps> = ({ post }) => {
       fetchLikes();
     }
   }, [post.id, user?.id]);
+
 
   const handleLike = async () => {
     try {
@@ -137,7 +144,7 @@ const Post: React.FC<PostProps> = ({ post }) => {
                 key={file.url + idx}
                 source={
                   mainImageLoading
-                    ? require("@/assets/user.png")
+                    ? require("@/assets/post.jpg")
                     : { uri: generateURL({ url: file.url }) }
                 }
                 style={{ width: galleryWidth, height: 400 }}
@@ -209,10 +216,10 @@ const Post: React.FC<PostProps> = ({ post }) => {
                 profileImageLoading
                   ? require("@/assets/user.png")
                   : {
-                      uri: generateURL({
-                        url: post?.user?.profile_picture?.url,
-                      }),
-                    }
+                    uri: generateURL({
+                      url: post?.user?.profile_picture?.url,
+                    }),
+                  }
               }
               style={{
                 width: 50,
@@ -266,7 +273,7 @@ const Post: React.FC<PostProps> = ({ post }) => {
             {/* Like button */}
             <TouchableOpacity onPress={handleLike}>
               <ThemedView
-                borderColor={liked ? COLORS.primary : "#fff"}
+                borderColor={"#fff"}
                 borderWidth={0.5}
                 padding={5}
                 borderRadius={200}
@@ -276,17 +283,15 @@ const Post: React.FC<PostProps> = ({ post }) => {
               >
                 <Heart
                   size={18}
-                  color={liked ? COLORS.primary : "#fff"}
-                  variant={liked ? "Bold" : "Outline"}
+                  color={"#fff"}
+                  variant={liked ? "Bold" : "Outline"} // ✅ fix: use liked state directly
                 />
-                <ThemedText
-                  color={liked ? COLORS.primary : "#fff"}
-                  fontSize={12}
-                >
+                <ThemedText color={"#fff"} fontSize={12}>
                   {likeCount}
                 </ThemedText>
               </ThemedView>
             </TouchableOpacity>
+
           </ThemedView>
         </ThemedView>
 

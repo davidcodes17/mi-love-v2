@@ -1,5 +1,5 @@
 export const COLORS = {
-  primary: "#ff8484",
+  primary: "#5d0201",
 };
 
 export const TYPOGRAPHY = {

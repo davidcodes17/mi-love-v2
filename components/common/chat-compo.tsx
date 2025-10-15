@@ -64,10 +64,10 @@ const ChatCompo: React.FC<ChatCompoProps> = ({ chat, currentUserId }) => {
               imageError || !otherParticipant?.profile_picture?.url
                 ? require("../../assets/users.jpg")
                 : {
-                    uri: generateURL({
-                      url: otherParticipant.profile_picture.url,
-                    }),
-                  }
+                  uri: generateURL({
+                    url: otherParticipant.profile_picture.url,
+                  }),
+                }
             }
             onError={() => setImageError(true)}
             style={{
@@ -78,13 +78,23 @@ const ChatCompo: React.FC<ChatCompoProps> = ({ chat, currentUserId }) => {
             resizeMode="cover"
           />
           <ThemedView>
-            <ThemedText fontSize={12} weight="bold">
+            <ThemedText fontSize={15} weight="semibold">
               {otherParticipant
                 ? `${otherParticipant.first_name} ${otherParticipant.last_name}`
                 : "Unknown User"}
             </ThemedText>
-            <ThemedText numberOfLines={1} ellipsizeMode="tail">
-              {lastMessage?.content || "No messages yet"}
+            <ThemedText numberOfLines={1} fontSize={12} ellipsizeMode="tail">
+              {
+                lastMessage?.content
+                  ? lastMessage?.content
+                  : lastMessage?.file?.url &&
+                    ["jpg", "jpeg", "png", "svg"].some(ext =>
+                      lastMessage?.file?.url.toLowerCase().endsWith(ext)
+                    )
+                    ? "🖼️ Image Shared"
+                    : "No messages yet"
+              }
+
             </ThemedText>
           </ThemedView>
         </ThemedView>
@@ -94,9 +104,9 @@ const ChatCompo: React.FC<ChatCompoProps> = ({ chat, currentUserId }) => {
           <ThemedText>
             {lastMessage
               ? new Date(lastMessage.created_at).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
+                hour: "2-digit",
+                minute: "2-digit",
+              })
               : ""}
           </ThemedText>
 

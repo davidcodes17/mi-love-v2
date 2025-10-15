@@ -67,15 +67,15 @@ const ForgotPassword = () => {
         <BackButton />
 
         <ThemedView marginTop={20}>
-          <ThemedText fontSize={30} weight="semibold">
+          <ThemedText fontSize={25} weight="semibold">
             Forgot Password
           </ThemedText>
-          <ThemedText fontSize={16} color="#666" marginTop={8} lineHeight={22}>
+          <ThemedText fontSize={13} color="#666" marginTop={2} lineHeight={22}>
             Enter an email address and we'll send you a verification code
           </ThemedText>
         </ThemedView>
 
-        <ThemedView marginTop={40} flex={1}>
+        <ThemedView marginTop={5} flex={1}>
           <InputField
             icon={<Sms size={20} color="#ddd" />}
             label="Email Address"

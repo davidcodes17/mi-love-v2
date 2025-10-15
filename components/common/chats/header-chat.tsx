@@ -5,19 +5,26 @@ import { Href, router } from "expo-router";
 import { ArrowLeft2, Call, Video } from "iconsax-react-native";
 import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useState } from "react";
+import { useTheme } from "@react-navigation/native";
+import { ChatMessage } from "@/types/chat.types";
+import { formatDistanceToNow } from "date-fns";
 
 export const HeaderChat = ({
   profileUrl,
   name,
+  message
 }: {
   name?: string;
   profileUrl: string;
+  message: ChatMessage
 }) => {
   const [imageError, setImageError] = useState(false);
 
   const imageSource = imageError || !profileUrl
     ? require("@/assets/users.jpg")
     : { uri: generateURL({ url: profileUrl }) };
+
+  const theme = useTheme()
 
   return (
     <ThemedView
@@ -26,9 +33,11 @@ export const HeaderChat = ({
       justifyContent="space-between"
       paddingHorizontal={12}
       paddingVertical={10}
-      borderBottomWidth={1}
+      borderBottomWidth={.2}
+      borderBottomLeftRadius={20}
+      borderBottomRightRadius={20}
       borderBottomColor="#eee"
-      backgroundColor="#fff"
+    // backgroundColor="#fff"
     >
       {/* Left: Back + User Info */}
       <ThemedView flexDirection="row" alignItems="center" flexShrink={1}>
@@ -36,7 +45,7 @@ export const HeaderChat = ({
           onPress={() => router.back()}
           style={{ marginRight: 10 }}
         >
-          <ArrowLeft2 size={28} color="#000" />
+          <ArrowLeft2 size={28} color={theme.colors.text} />
         </TouchableOpacity>
 
         <Image
@@ -46,12 +55,15 @@ export const HeaderChat = ({
         />
 
         <ThemedView marginLeft={10}>
-          <ThemedText fontSize={16} fontWeight="600" color="#000">
+          <ThemedText fontSize={16} fontWeight="600">
             {name || "Unknown User"}
           </ThemedText>
-          <ThemedText fontSize={12} color="#666">
-            Last seen 2 mins ago
-          </ThemedText>
+          {
+            message?.updated_at &&
+            <ThemedText fontSize={12} color="#666">
+              Last seen {message?.updated_at && new Date(message?.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', })}
+            </ThemedText>
+          }
         </ThemedView>
       </ThemedView>
 

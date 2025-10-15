@@ -19,6 +19,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   useCreateAccountService,
   useNotificationService,
+  useSendOtp,
 } from "@/hooks/auth-hooks.hooks";
 import toast from "@originaltimi/rn-toast";
 import * as Device from "expo-device";
@@ -115,8 +116,8 @@ const Step9 = ({
         email: values.email,
         token: token?.toString(),
         password: values.password,
-        first_name: values.fullName.split(" ")[0] || "",
-        last_name: values.fullName.split(" ")[1] || "",
+        first_name: values.firstName,
+        last_name: values.lastName,
         username: values.username,
         emergency_contact: values.emergencyContact,
         bio: values.bio,
@@ -163,6 +164,9 @@ const Step9 = ({
       });
     }
   };
+
+
+
 
   return (
     <ScrollView

@@ -66,9 +66,9 @@ export default function HomeScreen() {
         // case "status":
         //   Component = StatusSide;
         break;
-      case "interests":
-        Component = Interests;
-        break;
+      // case "interests":
+      //   Component = Interests;
+      //   break;
       case "posts":
         Component = Posts;
         props = { ref: postsRef };

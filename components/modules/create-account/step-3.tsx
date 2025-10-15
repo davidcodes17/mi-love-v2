@@ -42,14 +42,25 @@ const Step3 = ({
 
       <InputField
         icon={<Profile color="#ddd" size={20} />}
-        placeholder="Your Full Name"
-        label="Full Name"
-        value={values.fullName}
-        onChangeText={handleChange("fullName")}
-        onBlur={() => handleBlur("fullName")}
+        placeholder="Your First name"
+        label="First Name"
+        value={values.firstName}
+        onChangeText={handleChange("firstName")}
+        onBlur={() => handleBlur("firstName")}
       />
-      {touched.fullName && errors.fullName && (
-        <ThemedText color="red" marginTop={4}>{errors.fullName}</ThemedText>
+      {touched.firstName && errors.firstName && (
+        <ThemedText color="red" marginTop={4}>{errors.firstName}</ThemedText>
+      )}
+      <InputField
+        icon={<Profile color="#ddd" size={20} />}
+        placeholder="Your Last name"
+        label="Last Name"
+        value={values.lastName}
+        onChangeText={handleChange("lastName")}
+        onBlur={() => handleBlur("lastName")}
+      />
+      {touched.lastName && errors.lastName && (
+        <ThemedText color="red" marginTop={4}>{errors.lastName}</ThemedText>
       )}
 
       <InputField
@@ -75,7 +86,7 @@ const Step3 = ({
             onPress={onNext}
             text={isLast ? "Submit" : "Next"}
             mode="fill"
-            style={{ borderRadius: 100 }}
+            style={{ borderRadius: 100, width : "100%" }}
           />
         </ThemedView>
       </ThemedView>

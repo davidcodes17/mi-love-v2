@@ -87,72 +87,67 @@ const Step4 = ({
     }
   };
 
-  const height = Dimensions.get("window").height;
-
   return (
     <ThemedView>
-      <ScrollView style={{ height: height -150}}>
-        <ThemedView>
-          <BackButton />
-          <ThemedText marginTop={20} fontSize={30}>
-            Help us personalize your experience.
-          </ThemedText>
-          <ThemedText marginTop={7}>
-            Create an account by filling out the form below.
-          </ThemedText>
+      <ScrollView
+        contentContainerStyle={{ padding: 10, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <BackButton />
+        <ThemedText marginTop={20} fontSize={30}>
+          Help us personalize your experience.
+        </ThemedText>
+        <ThemedText marginTop={7}>
+          Create an account by filling out the form below.
+        </ThemedText>
 
-          <ThemedText marginTop={20} fontSize={16}>
-            Select Your Interests:
-          </ThemedText>
-          <ScrollView
-            style={{
-              height: "80%",
-            }}
-          >
-            <View style={styles.interestContainer}>
-              {defaultInterests.map((interest) => (
-                <TouchableOpacity
-                  key={interest}
-                  onPress={() => toggleInterest(interest)}
-                  style={[
-                    styles.tag,
-                    values.interests &&
-                      values.interests.includes(interest) &&
-                      styles.selectedTag,
-                  ]}
-                >
-                  <ThemedText
-                    color={
-                      values.interests && values.interests.includes(interest)
-                        ? "#fff"
-                        : "#333"
-                    }
-                  >
-                    {interest}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
-          {touched.interests && errors.interests && (
-            <ThemedText color="red" marginTop={4}>
-              {errors.interests}
-            </ThemedText>
-          )}
+        <ThemedText marginTop={20} fontSize={16}>
+          Select Your Interests:
+        </ThemedText>
 
-          <ThemedView
-            width={"30%"}
-            justifyContent="flex-end"
-            alignSelf="flex-end"
-            marginTop={5}
-          >
-            <NativeButton
-              onPress={onNext}
-              text={isLast ? "Submit" : "Next"}
-              mode="fill"
-              style={{ borderRadius: 100 }}
-            />
-          </ThemedView>
+        <View style={styles.interestContainer}>
+          {defaultInterests.map((interest) => (
+            <TouchableOpacity
+              key={interest}
+              onPress={() => toggleInterest(interest)}
+              style={[
+                styles.tag,
+                values.interests &&
+                  values.interests.includes(interest) &&
+                  styles.selectedTag,
+              ]}
+            >
+              <ThemedText
+                color={
+                  values.interests && values.interests.includes(interest)
+                    ? "#fff"
+                    : "#333"
+                }
+              >
+                {interest}
+              </ThemedText>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {touched.interests && errors.interests && (
+          <ThemedText color="red" marginTop={4}>
+            {errors.interests}
+          </ThemedText>
+        )}
+
+        <ThemedView
+          width={"30%"}
+          justifyContent="flex-end"
+          alignSelf="flex-end"
+          marginTop={20}
+        >
+          <NativeButton
+            onPress={onNext}
+            text={isLast ? "Submit" : "Next"}
+            mode="fill"
+            style={{ borderRadius: 100 }}
+          />
         </ThemedView>
       </ScrollView>
     </ThemedView>
@@ -165,7 +160,6 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     marginTop: 10,
     justifyContent: "space-between",
-    width: "100%",
   },
   tag: {
     borderColor: "#ddd",

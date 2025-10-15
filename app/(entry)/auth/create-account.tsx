@@ -36,7 +36,8 @@ const stepLabels = [
 const initialValues = {
   email: "",
   otp: "",
-  fullName: "",
+  firstName: "",
+  lastName: "",
   username: "",
   dob: "",
   country: "",

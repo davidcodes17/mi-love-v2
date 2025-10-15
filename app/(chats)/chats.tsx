@@ -11,9 +11,17 @@ import {
   Image,
   ActivityIndicator,
   Keyboard,
+  RefreshControl,
 } from "react-native";
-import { Alarm, Gift as GiftIcon, Send2, Image as ImageIcon, CloseCircle } from "iconsax-react-native";
+import {
+  Alarm,
+  Gift as GiftIcon,
+  Send2,
+  Image as ImageIcon,
+  CloseCircle,
+} from "iconsax-react-native";
 import { useLocalSearchParams } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import { COLORS } from "@/config/theme";
 import { ChatMessage } from "@/types/chat.types";
@@ -23,13 +31,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGetChatsPerFriend } from "@/hooks/chats.hooks";
 import ChatPanicButton from "@/components/common/chats/panic-button-icon";
 import { toast } from "@/components/lib/toast-manager";
-import BottomSheet, {
-  BottomSheetFlatList,
-  BottomSheetView,
-} from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetBackdrop } from "@gorhom/bottom-sheet";
+import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
+import LottieView from 'lottie-react-native';
 import { Gift as Gifts } from "@/types/wallet.types";
-import { useGetWallet } from "@/hooks/wallet-hooks.hooks";
-import { useGetAllGifts } from "@/hooks/wallet-hooks.hooks";
+import { useGetWallet, useGetAllGifts } from "@/hooks/wallet-hooks.hooks";
 import { generateURL } from "@/utils/image-utils.utils";
 import GiftCompo from "@/components/common/chats/gift-compo";
 import { useUserStore } from "@/store/store";
@@ -50,65 +56,43 @@ const Chats: React.FC = () => {
   const { chatId, name, profileUrl, userId } =
     useLocalSearchParams<Params>() as unknown as Params;
   const currentUserId = userId ?? "";
-  const { user, updateUser, clearUser } = useUserStore();
+  const { user } = useUserStore();
 
+  // state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [gifts, setGifts] = useState<Gifts[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(true);
   const [sending, setSending] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showGiftAnimation, setShowGiftAnimation] = useState(false);
+  const giftAnimationRef = useRef<LottieView>(null);
+
 
   const socketRef = useRef<Socket | null>(null);
   const [hasMoney, setHasMoney] = useState(false);
   const [checkingWallet, setCheckingWallet] = useState(true);
   const bottomSheetRef = useRef<BottomSheet | null>(null);
   const flatListRef = useRef<FlatList<ChatMessage> | null>(null);
-  const [localImage, setLocalImage] = useState(null);
 
-  flatListRef?.current?.scrollToEnd({ animated: true });
+  // Local image preview state used by ChatInput; exported here to allow manual upload/use if needed
+  const [localImage, setLocalImage] = useState<string | null>(null);
 
-  const uploadImage = async () => {
-    if (!localImage) {
-      // toast({
-      //   title: "Please select an image first.",
-      //   duration: 2000,
-      //   type: "error",
-      // });
-      return;
-    }
-
-    setSending(true);
-    // Prepare file object for upload
-    const file = {
-      uri: localImage,
-      name: "profile.jpg",
-      type: "image/jpeg",
-    };
+  /* ---------------- helpers ---------------- */
+  const scrollToBottom = (animated = true) => {
     try {
-      const response = await useUploadService({ file });
-      console.log("Upload response:", response);
-      // toast({
-      //   title: "Image uploaded successfully!",
-      //   duration: 2000,
-      //   type: "success",
-      // });
-      // This ID
-      console.log(response?.data[0]?.id, "SJSJ");
-      setSending(false);
-    } catch (error) {
-      setSending(false);
-      console.log("Upload error:", error);
-      // toast({
-      //   title: "Image upload failed.",
-      //   duration: 2000,
-      //   type: "error",
-      // });
+      // small timeout to wait for layout/render
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated });
+      }, 100);
+    } catch {
+      /* ignore */
     }
   };
 
-  /* ---------- Fetch gifts ---------- */
+  /* ---------------- fetch gifts ---------------- */
   useEffect(() => {
     let mounted = true;
-    const fetch = async () => {
+    const fetchGifts = async () => {
       try {
         const res = await useGetAllGifts();
         if (!mounted) return;
@@ -117,66 +101,70 @@ const Chats: React.FC = () => {
         console.warn("Failed to fetch gifts", err);
       }
     };
-    fetch();
+    fetchGifts();
     return () => {
       mounted = false;
     };
   }, []);
 
-  useEffect(() => {
-    const checkWalletBalance = async () => {
-      try {
-        setCheckingWallet(true);
-        const response = await useGetWallet();
-        const balance = Number(response?.data?.balance ?? 0);
-        if (balance >= 0.5) {
-          setHasMoney(true);
-        } else {
-          setHasMoney(false);
-        }
-      } catch (err) {
-        console.error("Failed to check wallet:", err);
-        setHasMoney(false);
-      } finally {
-        setCheckingWallet(false);
-      }
-    };
+  /* ---------------- check wallet balance ---------------- */
+  const checkWalletBalance = useCallback(async () => {
+    try {
+      setCheckingWallet(true);
+      const response = await useGetWallet();
+      const balance = Number(response?.data?.balance ?? 0);
+      setHasMoney(balance >= 0.5);
+    } catch (err) {
+      console.error("Failed to check wallet:", err);
+      setHasMoney(false);
+    } finally {
+      setCheckingWallet(false);
+    }
+  }, []);
 
+  useEffect(() => {
     checkWalletBalance();
-  }, []);
+  }, [checkWalletBalance]);
 
-  /* ---------- Fetch messages ---------- */
-  useEffect(() => {
-    let mounted = true;
-    const fetchMessages = async () => {
-      try {
-        setLoadingMessages(true);
-        const res = await useGetChatsPerFriend({ id: chatId });
-        if (!mounted) return;
-        setMessages(res?.data ?? []);
-      } catch (err) {
-        console.warn("Failed to fetch messages", err);
-        toast.show({
-          title: "Unable to load messages",
-          type: "error",
-          duration: 2000,
-        });
-      } finally {
-        setLoadingMessages(false);
-      }
-    };
-
-    if (chatId) fetchMessages();
-
-    return () => {
-      mounted = false;
-    };
+  /* ---------------- fetch messages ---------------- */
+  const fetchMessages = useCallback(async () => {
+    try {
+      setLoadingMessages(true);
+      const res = await useGetChatsPerFriend({ id: chatId });
+      setMessages(res?.data ?? []);
+    } catch (err) {
+      console.warn("Failed to fetch messages", err);
+      toast.show({
+        title: "Unable to load messages",
+        type: "error",
+        duration: 2000,
+      });
+    } finally {
+      setLoadingMessages(false);
+      setRefreshing(false);
+      // scroll after load
+      scrollToBottom(false);
+    }
   }, [chatId]);
 
-  /* ---------- Setup socket ---------- */
+  // refresh when screen focused (implements "refresh every time I go there")
+  useFocusEffect(
+    useCallback(() => {
+      fetchMessages();
+      checkWalletBalance();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chatId])
+  );
+
+  useEffect(() => {
+    // initial fetch
+    if (chatId) fetchMessages();
+  }, [chatId, fetchMessages]);
+
+  /* ---------------- setup socket ---------------- */
   useEffect(() => {
     let mounted = true;
-    const setupSocket = async () => {
+    const setup = async () => {
       try {
         const token = await AsyncStorage.getItem("token");
         if (!token) {
@@ -235,69 +223,90 @@ const Chats: React.FC = () => {
             user: data?.user ?? null,
             file: data?.file ?? null,
           };
+
           setMessages((prev) => [...prev, normalized]);
 
-          // 🔹 Scroll to bottom when new message arrives
-          setTimeout(() => {
-            flatListRef?.current?.scrollToEnd({ animated: true });
-          }, 100);
+          // scroll to bottom shortly after new message arrives
+          setTimeout(() => scrollToBottom(true), 100);
         });
-
       } catch (err) {
         console.warn("Socket setup failed", err);
       }
     };
 
-    setupSocket();
+    setup();
 
     return () => {
       mounted = false;
       const sock = socketRef.current;
       if (sock) {
         sock.off("private-message");
+        sock.off("connect");
+        sock.off("error");
         sock.disconnect();
       }
       socketRef.current = null;
     };
   }, [chatId]);
 
-  /* ---------- Sort messages ---------- */
+  /* ---------------- sort messages ----------------
+     announcements first (chronological), then normal messages chronological
+  */
   const sortedMessages = useMemo(() => {
     const arr = [...messages];
     const announcements = arr.filter((m) => m.type === "announcement");
     const rest = arr.filter((m) => m.type !== "announcement");
 
-    rest.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    announcements.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    announcements.sort(
+      (a, b) =>
+        (new Date(a.created_at).getTime() || 0) -
+        (new Date(b.created_at).getTime() || 0)
+    );
+    rest.sort(
+      (a, b) =>
+        (new Date(a.created_at).getTime() || 0) -
+        (new Date(b.created_at).getTime() || 0)
+    );
 
     return [...announcements, ...rest];
   }, [messages]);
 
-  /* ---------- Send message handler ---------- */
+  /* ---------------- send message (with optional image upload) ----------------
+     - keep message type as "text" even when image attached
+     - upload image first (if provided), get fileId and file url
+     - include fileId in socket emit and optimistic message
+  */
   const handleSend = useCallback(
     async (msg: string, imageUri?: string) => {
-      if (!msg.trim() && !imageUri)
-        return toast.show({
+      if (!msg.trim() && !imageUri) {
+        toast.show({
           title: "Message cannot be empty.",
           type: "error",
           duration: 2000,
         });
+        return;
+      }
 
-      flatListRef?.current?.scrollToEnd({ animated: true });
+      // always scroll to bottom before sending
+      scrollToBottom(true);
 
-      if (sending)
-        return toast.show({
+      if (sending) {
+        toast.show({
           title: "Please wait, message sending...",
           type: "info",
           duration: 1500,
         });
+        return;
+      }
 
-      if (!hasMoney)
-        return toast.show({
+      if (!hasMoney) {
+        toast.show({
           title: "Insufficient balance — fund your wallet.",
           type: "error",
           duration: 2500,
         });
+        return;
+      }
 
       const sock = socketRef.current;
       if (!sock || sock.disconnected) {
@@ -314,27 +323,26 @@ const Chats: React.FC = () => {
         let uploadedFileId: string | null = null;
         let uploadedFileUrl: string | null = null;
 
-        // 🔹 Upload image if attached
         if (imageUri) {
-          const file = {
-            uri: imageUri,
-            name: "chat_image.jpg",
-            type: "image/jpeg",
-          };
+          // prepare file and upload
+          const file = { uri: imageUri, name: "chat_image.jpg", type: "image/jpeg" };
           const res = await useUploadService({ file });
           uploadedFileId = res?.data?.[0]?.id ?? null;
           uploadedFileUrl = res?.data?.[0]?.url ?? null;
+
+          // log id after upload (you requested)
+          console.log("uploaded image id:", uploadedFileId);
         }
 
-        // 🔹 Prepare optimistic message
+        // optimistic message to UI
         const optimisticMsg: ChatMessage = {
           id: `local-${Date.now()}`,
-          type: "text",
+          type: "text", // keep as text per your instruction
           content: msg,
           edited: false,
           deleted: false,
           fileId: uploadedFileId,
-          userId: user?.id,
+          userId: user?.id ?? currentUserId,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           chatId: chatId ?? "",
@@ -345,7 +353,6 @@ const Chats: React.FC = () => {
         setMessages((prev) => [...prev, optimisticMsg]);
         Keyboard.dismiss();
 
-        // 🔹 Emit socket event
         sock.emit(
           "private-message",
           {
@@ -353,11 +360,16 @@ const Chats: React.FC = () => {
             message: msg,
             fileId: uploadedFileId,
           },
-          () => {
+          // optional ack callback
+          (response: any) => {
+            // here you can update the optimistic message if server returns full message
+            // For now we simply stop the sending state and scroll
             setSending(false);
-            flatListRef?.current?.scrollToEnd({ animated: true });
+            scrollToBottom(true);
           }
         );
+        setSending(false);
+        fetchMessages();
       } catch (err) {
         console.warn("Send failed", err);
         toast.show({
@@ -368,10 +380,17 @@ const Chats: React.FC = () => {
         setSending(false);
       }
     },
-    [chatId, currentUserId, userId, sending, hasMoney]
+    [chatId, currentUserId, userId, sending, hasMoney, user]
   );
 
+  /* ---------------- pull-to-refresh handler ---------------- */
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchMessages();
+  }, [fetchMessages]);
 
+
+  /* ---------------- Render helpers ---------------- */
   const renderEmpty = () => {
     if (loadingMessages) {
       return (
@@ -388,9 +407,24 @@ const Chats: React.FC = () => {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
       <SafeAreaView style={styles.container}>
-        <HeaderChat profileUrl={profileUrl ?? ""} name={name ?? "Unknown"} />
+        <HeaderChat message={messages[messages.length - 1]} profileUrl={profileUrl ?? ""} name={name ?? "Unknown"} />
+
+        {showGiftAnimation && (
+          <LottieView
+            ref={giftAnimationRef}
+            source={require("@/assets/jsons/splash.json")}
+            style={StyleSheet.absoluteFill}
+            autoPlay
+            loop={false}
+            onAnimationFinish={() => setShowGiftAnimation(false)}
+          />
+        )}
+
 
         <FlatList
           ref={flatListRef}
@@ -398,13 +432,34 @@ const Chats: React.FC = () => {
           keyExtractor={(item) => item.id ?? `${item.created_at ?? Date.now()}`}
           contentContainerStyle={styles.messagesList}
           renderItem={({ item }) => (
-            <MessageBubble profileUrl={profileUrl} item={item} currentUserId={currentUserId} />
+            <MessageBubble
+              profileUrl={profileUrl}
+              item={item}
+              currentUserId={currentUserId}
+            />
           )}
           ListEmptyComponent={renderEmpty}
           keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
+            />
+          }
         />
 
-        <BottomSheet ref={bottomSheetRef} index={-1} snapPoints={["25%", "50%"]} enablePanDownToClose>
+        <BottomSheet
+          ref={bottomSheetRef}
+          index={-1}
+          // snapPoints={["45%", "50%"]}
+          enablePanDownToClose
+          style={{
+            zIndex: 999
+          }}
+          backdropComponent={BottomSheetBackdrop}
+        >
           <BottomSheetFlatList
             data={gifts}
             keyExtractor={(item) => item.id.toString()}
@@ -415,19 +470,42 @@ const Chats: React.FC = () => {
               paddingHorizontal: 20,
             }}
             columnWrapperStyle={{ justifyContent: "space-between", marginBottom: 20 }}
-            renderItem={({ item }) => <GiftCompo gift={item} receiverId={userId ?? ""} />}
+            renderItem={({ item }) => <GiftCompo onSuccess={() => {
+              bottomSheetRef.current?.collapse();
+              setShowGiftAnimation(true)
+            }} gift={item} receiverId={userId ?? ""} />}
           />
         </BottomSheet>
 
         {checkingWallet ? (
-          <ThemedView justifyContent="center" alignItems="center" padding={20} backgroundColor="#fafafa" borderTopWidth={0.3} borderTopColor="#eee">
+          <ThemedView
+            justifyContent="center"
+            alignItems="center"
+            padding={20}
+            // backgroundColor="#fafafa"
+            borderTopWidth={0.3}
+            borderTopColor="#eee"
+          >
             <ActivityIndicator size="small" color={COLORS.primary} />
           </ThemedView>
         ) : hasMoney ? (
-          <ChatInput onSend={handleSend} onGiftPress={() => bottomSheetRef.current?.expand()} sending={sending} />
+          <ChatInput
+            onSend={handleSend}
+            onGiftPress={() => bottomSheetRef.current?.expand()}
+            sending={sending}
+            // expose the localImage setter so you can set it elsewhere if needed
+            setLocalImage={setLocalImage}
+          />
         ) : (
-          <ThemedView justifyContent="center" alignItems="center" padding={20} backgroundColor="#fff8f8" borderTopWidth={0.3} borderTopColor="#eee">
-            <ThemedText fontSize={14} color="#EF4444" fontWeight="600" textAlign="center">
+          <ThemedView
+            justifyContent="center"
+            alignItems="center"
+            padding={20}
+            // backgroundColor="#fff8f8"
+            borderTopWidth={0.3}
+            borderTopColor="#eee"
+          >
+            <ThemedText fontSize={14} fontWeight="600" textAlign="center">
               Insufficient balance — fund your wallet to chat.
             </ThemedText>
           </ThemedView>
@@ -438,11 +516,11 @@ const Chats: React.FC = () => {
 };
 
 /* ---------------- Message Bubble ---------------- */
-export const MessageBubble: React.FC<{ item: ChatMessage; currentUserId: string; profileUrl?: string }> = ({
-  item,
-  currentUserId,
-  profileUrl,
-}) => {
+export const MessageBubble: React.FC<{
+  item: ChatMessage;
+  currentUserId: string;
+  profileUrl?: string;
+}> = ({ item, currentUserId, profileUrl }) => {
   const isMe = item.userId === currentUserId;
   const { user } = useUserStore();
 
@@ -457,36 +535,44 @@ export const MessageBubble: React.FC<{ item: ChatMessage; currentUserId: string;
     );
   }
 
-
   return (
     <View style={[styles.messageRow, isMe ? styles.otherMessageRow : styles.myMessageRow]}>
-      {isMe && (
-        <Image source={user?.profile_picture ? { uri: generateURL({ url: user.profile_picture.url }) } : DEFAULT_USER_IMAGE} style={styles.avatar} />
+      {/* sender avatar on left when sender is me (as requested previously) */}
+      {isMe && profileUrl && (
+        <Image
+          source={user?.profile_picture ? { uri: generateURL({ url: profileUrl }) } : DEFAULT_USER_IMAGE}
+          style={styles.avatar}
+        />
       )}
-
-      <View style={[styles.messageBubble, isMe ? styles.otherMessage : styles.myMessage]}>
-        {/* {item.type === "image" && item.file?.url ? (
-          <Image source={{ uri: item.file.url }} style={{ width: 180, height: 180, borderRadius: 12, marginBottom: 6 }} />
-        ) : null} */}
-        <ThemedText color={isMe ? "#000" : "#fff"}>{item.content}</ThemedText>
-        {item.created_at && (
-          <ThemedText fontSize={6} color={isMe ? "#666" : "#eee"} marginTop={6} alignSelf="flex-end" opacity={0.8}>
-            {new Date(item.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-          </ThemedText>
-        )}
-      </View>
-
-      {!isMe && (
-        <Image source={profileUrl ? { uri: generateURL({ url: profileUrl }) } : DEFAULT_USER_IMAGE} style={styles.avatar} />
-      )}
-{/* 
-      {item.type === "" && item.file?.url ? (
+      {item.file?.url ? (
+        // show image preview inside bubble if file exists (optimistic or real)
         <Image
           source={{ uri: generateURL({ url: item.file.url }) }}
-          style={{ width: 180, height: 180, borderRadius: 12, marginBottom: 6 }}
+          style={{ width: 180, height: 180, borderRadius: 12 }}
         />
-      ) : null} */}
+      ) : null}
 
+      {!item.file?.url && item?.content &&
+        <View style={[styles.messageBubble, isMe ? styles.otherMessage : styles.myMessage]}>
+
+          <ThemedText color={isMe ? "#000" : "#fff"}>{item.content}</ThemedText>
+
+          {item.created_at && (
+            <ThemedText
+              fontSize={8}
+              color={isMe ? "#666" : "#eee"}
+              marginTop={1}
+              alignSelf="flex-end"
+              opacity={0.8}
+            >
+              {new Date(item.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </ThemedText>
+          )}
+        </View>
+      }
+      {!isMe && (
+        <Image source={user ? { uri: generateURL({ url: user.profile_picture.url }) } : DEFAULT_USER_IMAGE} style={styles.avatar} />
+      )}
     </View>
   );
 };
@@ -496,7 +582,8 @@ const ChatInput: React.FC<{
   onSend: (msg: string, imageUri?: string) => void;
   onGiftPress: () => void;
   sending?: boolean;
-}> = ({ onSend, onGiftPress, sending = false }) => {
+  setLocalImage?: (uri: string | null) => void; // optional setter exposed to parent
+}> = ({ onSend, onGiftPress, sending = false, setLocalImage }) => {
   const [text, setText] = useState("");
   const [imageUri, setImageUri] = useState<string | null>(null);
 
@@ -520,6 +607,7 @@ const ChatInput: React.FC<{
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         setImageUri(result.assets[0].uri);
+        if (setLocalImage) setLocalImage(result.assets[0].uri);
       }
     } catch (err) {
       console.warn("Image picker error:", err);
@@ -531,75 +619,52 @@ const ChatInput: React.FC<{
     }
   };
 
-
-
   const handleSend = () => {
     if ((!text.trim() && !imageUri) || sending) return;
     onSend(text.trim(), imageUri ?? undefined);
     setText("");
     setImageUri(null);
+    if (setLocalImage) setLocalImage(null);
   };
 
   return (
     <ThemedView
       flexDirection="column"
-      borderTopWidth={0.3}
+      borderTopWidth={0.2}
       borderTopColor="#eee"
-      backgroundColor="#fafafa"
+      // backgroundColor="#fafafa"
       padding={10}
       gap={6}
     >
-      {/* 🔹 Image preview section */}
+      {/* image preview */}
       {imageUri && (
-        <View
-          style={{
-            alignSelf: "flex-start",
-            position: "relative",
-            marginBottom: 4,
-          }}
-        >
+        <View style={{ alignSelf: "flex-start", position: "relative", marginBottom: 4 }}>
           <Image
             source={{ uri: imageUri }}
-            style={{
-              width: 120,
-              height: 120,
-              borderRadius: 12,
-              borderWidth: 0.5,
-              borderColor: "#ccc",
-            }}
+            style={{ width: 120, height: 120, borderRadius: 12, borderWidth: 0.5, borderColor: "#ccc" }}
           />
           <TouchableOpacity
-            onPress={() => setImageUri(null)}
-            style={{
-              position: "absolute",
-              top: 6,
-              right: 6,
-              backgroundColor: "rgba(0,0,0,0.5)",
-              borderRadius: 20,
-              padding: 3,
+            onPress={() => {
+              setImageUri(null);
+              if (setLocalImage) setLocalImage(null);
             }}
+            style={{ position: "absolute", top: 6, right: 6, backgroundColor: "rgba(0,0,0,0.5)", borderRadius: 20, padding: 3 }}
           >
             <CloseCircle size={18} color="#fff" />
           </TouchableOpacity>
         </View>
       )}
 
-      {/* 🔹 Input Row */}
+      {/* input row */}
       <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
         <ChatPanicButton />
 
         <TouchableOpacity
           onPress={pickImage}
           accessibilityLabel="Upload image"
-          style={{
-            backgroundColor: "#fff",
-            borderWidth: 0.3,
-            borderColor: "#ddd",
-            padding: 10,
-            borderRadius: 50,
-          }}
+          style={{ backgroundColor: COLORS.primary, padding: 10, borderRadius: 50 }}
         >
-          <ImageIcon size={20} color={COLORS.primary} />
+          <ImageIcon size={20} color={"#fff"} />
         </TouchableOpacity>
 
         <TextInput
@@ -613,35 +678,21 @@ const ChatInput: React.FC<{
           onSubmitEditing={handleSend}
         />
 
-        <TouchableOpacity
-          style={styles.sendButton}
-          onPress={onGiftPress}
-          accessibilityLabel="Open gifts"
-        >
+        <TouchableOpacity style={styles.sendButton} onPress={onGiftPress} accessibilityLabel="Open gifts">
           <GiftIcon size={20} color="#fff" />
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.sendButton}
-          onPress={handleSend}
-          accessibilityLabel="Send message"
-          disabled={sending}
-        >
-          {sending ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Send2 size={20} color="#fff" />
-          )}
+        <TouchableOpacity style={styles.sendButton} onPress={handleSend} accessibilityLabel="Send message" disabled={sending}>
+          {sending ? <ActivityIndicator color="#fff" /> : <Send2 size={20} color="#fff" />}
         </TouchableOpacity>
       </View>
     </ThemedView>
   );
 };
 
-
 /* ---------------- Styles ---------------- */
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1, },
   messagesList: {
     paddingVertical: 16,
     paddingHorizontal: 14,

@@ -4,33 +4,38 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  View,
+  Dimensions,
 } from "react-native";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Gift, SendGiftPayload } from "@/types/wallet.types";
 import { useSendGift } from "@/hooks/wallet-hooks.hooks";
 import { ThemedText } from "@/components/ui/themed-view";
+import LottieView from "lottie-react-native";
+
+const { width, height } = Dimensions.get("window");
 
 const GiftCompo = ({
   gift,
   receiverId,
+  onSuccess, // callback when gift sent
 }: {
   gift: Gift;
   receiverId: string;
+  onSuccess: () => void;
 }) => {
   const [loading, setLoading] = useState(false);
+  const [showAnimation, setShowAnimation] = useState(false);
+
+  const animationRef = useRef<LottieView>(null);
 
   const handleSendGift = async () => {
-    if (loading) return; // avoid double-taps
+    if (loading) return;
     setLoading(true);
 
     try {
-      const data: SendGiftPayload = {
-        giftId: gift.id,
-        receiverId,
-      };
-
+      const data: SendGiftPayload = { giftId: gift.id, receiverId };
       const response = await useSendGift({ data });
-      console.log("🎁 Gift API response:", response);
 
       if (!response?.message) {
         Alert.alert("Error", "Something went wrong. Please try again.");
@@ -41,15 +46,14 @@ const GiftCompo = ({
         response.message.toLowerCase().includes("insufficient balance") ||
         response.message.toLowerCase().includes("error")
       ) {
-        // 🔴 error case
         Alert.alert("❌ Failed", response.message);
       } else {
-        // ✅ success case
+        setShowAnimation(true);
+        onSuccess();
         Alert.alert("🎉 Success", response.message);
         console.log("✅ Gift sent successfully:", response.message);
       }
     } catch (err: any) {
-      console.error("❌ Failed to send gift:", err);
       Alert.alert("Error", err?.message || "Failed to send gift. Try again.");
     } finally {
       setLoading(false);
@@ -63,21 +67,34 @@ const GiftCompo = ({
       activeOpacity={0.8}
       disabled={loading}
     >
-      {loading ? (
-        <ActivityIndicator size="small" color="#FF4081" style={styles.image} />
-      ) : (
-        <Image
-          source={{ uri: gift?.image?.url }}
-          style={styles.image}
-          resizeMode="cover"
+      <View style={{ alignItems: "center" }}>
+        {loading ? (
+          <ActivityIndicator size="small" color="#FF4081" style={styles.image} />
+        ) : (
+          <Image
+            source={{ uri: gift?.image?.url }}
+            style={styles.image}
+            resizeMode="cover"
+          />
+        )}
+
+        <ThemedText fontSize={12} textAlign="center" numberOfLines={1}>
+          {gift.name}
+        </ThemedText>
+        <ThemedText fontSize={10} textAlign="center" color="#888">
+          {gift.points} pts
+        </ThemedText>
+      </View>
+
+      {showAnimation && (
+        <LottieView
+          ref={animationRef}
+          source={require("@/assets/jsons/splash.json")}
+          style={StyleSheet.absoluteFill}
+          loop={false}
+          onAnimationFinish={() => setShowAnimation(false)}
         />
       )}
-      <ThemedText fontSize={12} textAlign="center" numberOfLines={1}>
-        {gift.name}
-      </ThemedText>
-      <ThemedText fontSize={10} textAlign="center" color="#888">
-        {gift.points} pts
-      </ThemedText>
     </TouchableOpacity>
   );
 };
@@ -88,6 +105,7 @@ const styles = StyleSheet.create({
   wrapper: {
     alignItems: "center",
     width: 70,
+    position: "relative",
   },
   image: {
     height: 60,
@@ -96,7 +114,5 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     borderWidth: 1,
     borderColor: "#eee",
-    justifyContent: "center",
-    alignItems: "center",
   },
 });

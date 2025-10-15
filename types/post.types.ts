@@ -58,3 +58,8 @@ export interface PostsResponse {
   posts: Post[];
   meta: PostMeta;
 }
+
+export interface LikesResponse {
+  data: PostUser;
+  meta: PostMeta;
+}

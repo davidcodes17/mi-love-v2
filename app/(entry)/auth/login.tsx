@@ -84,7 +84,7 @@ const LoginScreen = () => {
 
   const sendFcm = async () => {
     const response = await useNotificationService({ token: expoPushToken });
-    console.log(response,"GETETE")
+    console.log(response, "GETETE")
   };
 
 
@@ -197,8 +197,9 @@ const LoginScreen = () => {
           </Link>
 
           <NativeButton
-            text={loading ? "Logging in..." : "Login"}
+            text={"Login"}
             mode="fill"
+            isLoading={loading}
             style={{ borderRadius: 100, marginTop: 20 }}
             onPress={handleLogin}
             disabled={loading}
