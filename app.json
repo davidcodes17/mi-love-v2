@@ -14,10 +14,25 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need your location to show nearby services.",
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "bitcode": false
     },
     "android": {
-      "permissions": ["CAMERA", "RECORD_AUDIO", "BLUETOOTH"],
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "BLUETOOTH",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.WAKE_LOCK",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.CAMERA",
+        "android.permission.INTERNET",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffffff"
@@ -58,7 +73,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "b1d1260d-8e0c-48c9-83ec-bfa11bf2a79a"
+        "projectId": "fda58c7a-cdfa-4217-b82e-9ef5661a4c64"
       }
     }
   }
