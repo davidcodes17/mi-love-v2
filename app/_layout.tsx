@@ -20,6 +20,7 @@ import { ToastProvider } from "@originaltimi/rn-toast";
 import { useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { CallProvider } from "@/context/call-provider";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -61,20 +62,34 @@ export default function RootLayout() {
               stack: true,
             }}
           >
-            <Stack>
-              <Stack.Screen name="(home)" options={{ headerShown: false }} />
-              <Stack.Screen name="(status)" options={{ headerShown: false }} />
-              <Stack.Screen name="(search)" options={{ headerShown: false }} />
-              <Stack.Screen name="(chats)" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="(notifications)"
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen name="(settings)" options={{ headerShown: false }} />
-              <Stack.Screen name="(friends)" options={{ headerShown: false }} />
-              <Stack.Screen name="(entry)" options={{ headerShown: false }} />
-              <Stack.Screen name="+not-found" />
-            </Stack>
+            <CallProvider>
+              <Stack>
+                <Stack.Screen name="(home)" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="(status)"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="(search)"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen name="(chats)" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="(notifications)"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="(settings)"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="(friends)"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen name="(entry)" options={{ headerShown: false }} />
+                <Stack.Screen name="+not-found" />
+              </Stack>
+            </CallProvider>
             <StatusBar style="auto" />
           </ToastProvider>
         </ThemeProvider>
