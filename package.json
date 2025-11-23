@@ -12,6 +12,9 @@
     "test": "jest --watchAll",
     "lint": "expo lint"
   },
+  "engines": {
+    "node": ">=20.19.4"
+  },
   "jest": {
     "preset": "jest-expo"
   },
@@ -28,13 +31,14 @@
     "@react-navigation/bottom-tabs": "^7.3.10",
     "@react-navigation/elements": "^2.3.8",
     "@react-navigation/native": "^7.1.6",
-    "@stream-io/react-native-webrtc": "^125.4.5",
-    "@stream-io/video-react-native-sdk": "^1.22.1",
+    "@stream-io/react-native-webrtc": "^137.0.0",
+    "@stream-io/video-react-native-sdk": "^1.24.6",
     "axios": "^1.10.0",
     "date-fns": "^4.1.0",
-    "expo": "53.0.17",
+    "eas-cli": "^16.28.0",
+    "expo": "^54.0.25",
     "expo-blur": "~14.1.5",
-    "expo-build-properties": "~0.14.8",
+    "expo-build-properties": "~1.0.9",
     "expo-constants": "~17.1.7",
     "expo-dev-client": "~5.2.4",
     "expo-device": "~7.1.4",
@@ -63,11 +67,12 @@
     "react-native-otp-entry": "^1.8.4",
     "react-native-phone-number-input": "^2.1.0",
     "react-native-picker-select": "^9.3.1",
-    "react-native-reanimated": "3.17.4",
+    "react-native-reanimated": "3.9.0",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
-    "react-native-svg": "15.11.2",
+    "react-native-svg": "15.12.1",
     "react-native-web": "~0.20.0",
+    "react-native-webrtc": "^124.0.7",
     "react-native-webview": "13.13.5",
     "rn-placeholder": "^3.0.3",
     "socket.io-client": "^4.8.1",

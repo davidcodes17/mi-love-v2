@@ -5,6 +5,7 @@ import {
   getChatsPerFriend,
 } from "@/services/chats-service.service";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { generateTokenCall } from "../services/chats-service.service";
 
 export const useGetAllChats = async () => {
   const response = await getAllChatFriends();
@@ -22,8 +23,7 @@ export const useChatSocket = (
   useEffect(() => {
     const initSocket = async () => {
       try {
-
-        console.log(" codeeeee")
+        console.log(" codeeeee");
         const token = await AsyncStorage.getItem("token"); // 👈 get stored token
 
         const socket = io("https://ttznxdxb-9999.uks1.devtunnels.ms", {
@@ -34,13 +34,13 @@ export const useChatSocket = (
           },
         });
 
-        console.log(" codeeeeesss")
+        console.log(" codeeeeesss");
 
         socketRef.current = socket;
 
         // Listen for new messages
         socket.on("chat:new_message", onMessage);
-        console.log(" codeeeeezzzzzzzzz")
+        console.log(" codeeeeezzzzzzzzz");
 
         socket.on("connect_error", (err) => {
           console.log("Socket connection error:", err.message);
@@ -69,5 +69,10 @@ export const useChatSocket = (
 
 export const useGetChatsPerFriend = async ({ id }: { id: string }) => {
   const response = await getChatsPerFriend({ id });
+  return response;
+};
+
+export const useGetTokenCall = async () => {
+  const response = await generateTokenCall();
   return response;
 };

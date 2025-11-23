@@ -19,7 +19,9 @@ import {
 import { ToastProvider } from "@originaltimi/rn-toast";
 import { useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { StreamVideoProvider } from "@/providers/StreamVideoProvider";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { CallStateProvider } from "@/providers/CallStateProvider";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -53,31 +55,35 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <BottomSheetModalProvider>
-        <ThemeProvider value={colorScheme === "dark" ? DarkTheme : LightTheme}>
-          <ToastProvider
-            config={{
-              duration: 4000,
-              position: "bottom",
-              stack: true,
-            }}
-          >
-            <Stack>
-              <Stack.Screen name="(home)" options={{ headerShown: false }} />
-              <Stack.Screen name="(status)" options={{ headerShown: false }} />
-              <Stack.Screen name="(search)" options={{ headerShown: false }} />
-              <Stack.Screen name="(chats)" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="(notifications)"
-                options={{ headerShown: false }}
-              />
-              <Stack.Screen name="(settings)" options={{ headerShown: false }} />
-              <Stack.Screen name="(friends)" options={{ headerShown: false }} />
-              <Stack.Screen name="(entry)" options={{ headerShown: false }} />
-              <Stack.Screen name="+not-found" />
-            </Stack>
-            <StatusBar style="auto" />
-          </ToastProvider>
-        </ThemeProvider>
+        <StreamVideoProvider>
+          <CallStateProvider>
+            <ThemeProvider value={colorScheme === "dark" ? DarkTheme : LightTheme}>
+              <ToastProvider
+                config={{
+                  duration: 4000,
+                  position: "bottom",
+                  stack: true,
+                }}
+              >
+                <Stack>
+                  <Stack.Screen name="(home)" options={{ headerShown: false }} />
+                  <Stack.Screen name="(status)" options={{ headerShown: false }} />
+                  <Stack.Screen name="(search)" options={{ headerShown: false }} />
+                  <Stack.Screen name="(chats)" options={{ headerShown: false }} />
+                  <Stack.Screen
+                    name="(notifications)"
+                    options={{ headerShown: false }}
+                  />
+                  <Stack.Screen name="(settings)" options={{ headerShown: false }} />
+                  <Stack.Screen name="(friends)" options={{ headerShown: false }} />
+                  <Stack.Screen name="(entry)" options={{ headerShown: false }} />
+                  <Stack.Screen name="+not-found" />
+                </Stack>
+                <StatusBar style="auto" />
+              </ToastProvider>
+            </ThemeProvider>
+          </CallStateProvider>
+        </StreamVideoProvider>
       </BottomSheetModalProvider>
     </GestureHandlerRootView>
   );

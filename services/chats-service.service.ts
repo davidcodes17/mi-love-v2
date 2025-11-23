@@ -18,3 +18,13 @@ export const getChatsPerFriend = async ({id}:{id : string}) => {
     return error?.response?.data?.error;
   }
 };
+
+export const generateTokenCall = async () => {
+  try {
+    const response = await apiSecured.get(`/streams/token`);
+    return response.data;
+  } catch (error: any) {
+    console.log(error);
+    return error?.response?.data?.error;
+  }
+}
