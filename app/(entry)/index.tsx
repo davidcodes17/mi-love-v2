@@ -75,7 +75,7 @@ const Onboarding = () => {
               justifyContent="center"
             >
               <Image
-                source={require("@/assets/images/onboarding/icon.png")}
+                source={require("@/assets/icon.png")}
                 style={{ width: 50, height: 50, alignSelf: "center", borderRadius : 200 }}
               />
               <ThemedText weight="medium" fontSize={25}>

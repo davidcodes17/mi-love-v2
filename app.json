@@ -8,16 +8,20 @@
     "scheme": "milove",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.dating.milove",
+      "bitcode": false,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need your location to show nearby services.",
         "ITSAppUsesNonExemptEncryption": false
-      },
-      "bitcode": false
+      }
     },
+
     "android": {
+      "package": "com.david_codes.milove",
+      "newArchEnabled": true,
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
@@ -36,14 +40,15 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffffff"
-      },
-      "package": "com.david_codes.milove"
+      }
     },
+
     "web": {
       "bundler": "metro",
       "output": "static",
       "favicon": "./assets/icon.png"
     },
+
     "plugins": [
       "expo-router",
       "@stream-io/video-react-native-sdk",
@@ -65,11 +70,23 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "expo-build-properties"
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "newArchEnabled": true
+          },
+          "ios": {
+            "newArchEnabled": true
+          }
+        }
+      ]
     ],
+
     "experiments": {
       "typedRoutes": true
     },
+
     "extra": {
       "router": {},
       "eas": {

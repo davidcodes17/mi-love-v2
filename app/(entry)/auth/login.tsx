@@ -204,33 +204,6 @@ const LoginScreen = () => {
             onPress={handleLogin}
             disabled={loading}
           />
-
-          {/* <ThemedText paddingVertical={20} textAlign="center">
-            Or
-          </ThemedText>
-
-          <TouchableOpacity
-            onPress={() => {
-              router.push("/home");
-            }}
-          >
-            <ThemedView
-              flexDirection="row"
-              justifyContent="center"
-              alignItems="center"
-              gap={10}
-              borderWidth={1}
-              borderColor={"#ddd"}
-              paddingVertical={15}
-              borderRadius={100}
-            >
-              <Image
-                source={require("@/assets/images/google.png")}
-                style={{ width: 20, height: 20 }}
-              />
-              <ThemedText fontSize={15}>Sign In with Google</ThemedText>
-            </ThemedView>
-          </TouchableOpacity> */}
         </ThemedView>
       </Animated.View>
     </SafeAreaView>
