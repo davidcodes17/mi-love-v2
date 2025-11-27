@@ -72,13 +72,6 @@ const Settings = () => {
   };
 
   const settingsLinks = [
-    // TEMPORARY: Test Call Screen - Remove after testing
-    {
-      label: "🧪 Test Call (Remove After Testing)",
-      icon: <Call size={22} color="#FF9800" variant="Bold" />,
-      onPress: () => router.push("/test-call" as Href),
-      isTest: true,
-    },
     {
       label: "Account Information",
       icon: <Setting2 size={22} color={COLORS.primary} variant="Bold" />,

@@ -67,7 +67,7 @@ export default function LoadingScreen({ message = "Loading..." }: LoadingScreenP
         
         <Animated.View style={[styles.loadingContainer, textAnimatedStyle]}>
           <ActivityIndicator size="large" color="#fff" />
-          <ThemedText fontSize={16} color="#fff" marginTop={20} weight="500">
+          <ThemedText fontSize={16} color="#fff" marginTop={20}>
             {message}
           </ThemedText>
         </Animated.View>

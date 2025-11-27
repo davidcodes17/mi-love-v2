@@ -13,6 +13,8 @@
       "bundleIdentifier": "com.dating.milove",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "We need your location to show nearby services.",
+        "NSCameraUsageDescription": "This app needs access to your camera to make video calls",
+        "NSMicrophoneUsageDescription": "This app needs access to your microphone to make calls",
         "ITSAppUsesNonExemptEncryption": false
       },
       "bitcode": false

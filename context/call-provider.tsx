@@ -129,9 +129,14 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
       return undefined;
     }
 
+    if (!userId) {
+      console.error("CallProvider: User ID is required");
+      return undefined;
+    }
+
     try {
-      const callId = `${callType}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      console.log("CallProvider: Creating call", callId, "for user:", userId);
+      const callId = `${callType}-call-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      console.log("CallProvider: Creating call", callId, "for user:", userId, "type:", callType);
 
       const call = client.call("default", callId);
 
@@ -145,10 +150,15 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         },
       });
 
-      console.log("CallProvider: Call created successfully:", callId);
+      console.log("CallProvider: Call created successfully:", callId, "Call object:", call);
       return call;
-    } catch (error) {
+    } catch (error: any) {
       console.error("CallProvider: Error creating call:", error);
+      console.error("CallProvider: Error details:", {
+        message: error?.message,
+        code: error?.code,
+        response: error?.response,
+      });
       return undefined;
     }
   }, [client, userStore?.id]);
@@ -163,39 +173,62 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
       return undefined;
     }
 
+    if (!callId) {
+      console.error("CallProvider: Call ID is required");
+      return undefined;
+    }
+
     try {
-      console.log("CallProvider: Joining call:", callId);
+      console.log("CallProvider: Joining call:", callId, "type:", callType);
+
+      // Add delay to ensure native modules are ready
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       const call = client.call("default", callId);
+
+      // Validate call object
+      if (!call) {
+        console.error("CallProvider: Failed to create call object");
+        return undefined;
+      }
 
       // Try to get the call first
       try {
         await call.get();
+        console.log("CallProvider: Call found, joining...");
       } catch (error) {
-        // Call doesn't exist, create it
-        console.log("CallProvider: Call not found, creating...");
-        await call.getOrCreate({
-          data: {
-            members: [{ user_id: userStore?.id || "" }],
-            custom: {
-              type: callType,
-            },
-          },
-        });
+        // Call doesn't exist, this shouldn't happen for outgoing calls
+        // but we'll handle it gracefully
+        console.log("CallProvider: Call not found, this might be an issue");
+        // Don't create it, just try to join
       }
 
-      // Join the call
-      await call.join({
-        create: false,
-      });
+      // Add another delay before joining to ensure native module is ready
+      await new Promise(resolve => setTimeout(resolve, 300));
 
-      console.log("CallProvider: Call joined successfully:", callId);
-      return call;
-    } catch (error) {
+      // Join the call with defensive error handling
+      try {
+        await call.join({
+          create: false,
+        });
+        console.log("CallProvider: Call joined successfully:", callId);
+        return call;
+      } catch (joinError: any) {
+        console.error("CallProvider: Error during call.join():", joinError);
+        // Don't throw, just return undefined
+        return undefined;
+      }
+    } catch (error: any) {
       console.error("CallProvider: Error joining call:", error);
+      console.error("CallProvider: Error details:", {
+        message: error?.message,
+        code: error?.code,
+        response: error?.response,
+        stack: error?.stack,
+      });
       return undefined;
     }
-  }, [client, userStore?.id]);
+  }, [client]);
 
   // If client is not initialized, return context without StreamVideo wrapper
   if (!client || !isInitialized) {

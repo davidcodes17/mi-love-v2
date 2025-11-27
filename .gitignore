@@ -17,6 +17,7 @@ build-1764191644981.apk
 *.p12
 *.key
 *.mobileprovision
+/ios
 
 # Metro
 .metro-health-check*

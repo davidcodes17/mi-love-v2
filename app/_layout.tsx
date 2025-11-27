@@ -34,7 +34,7 @@ SplashScreen.preventAutoHideAsync();
 const PROTECTED_ROUTES = ["(home)", "(chats)", "(settings)", "(friends)", "(notifications)", "(search)", "(status)"];
 
 // Protected standalone routes (root level)
-const PROTECTED_STANDALONE_ROUTES = ["video-call", "outgoing-call", "test-call"];
+const PROTECTED_STANDALONE_ROUTES = ["video-call", "outgoing-call"];
 
 // Public route groups that don't require authentication
 const PUBLIC_ROUTES = ["(entry)"];
@@ -124,10 +124,10 @@ function ProtectedRouteWrapper({ children }: { children: React.ReactNode }) {
         setIsRedirecting(true);
         
         // Small delay for smoother transition
-        redirectTimeoutRef.current = setTimeout(() => {
-          router.replace("/(entry)");
-          setTimeout(() => setIsRedirecting(false), 300);
-        }, 150);
+        // redirectTimeoutRef.current = setTimeout(() => {
+        //   router.replace("/(entry)");
+        //   setTimeout(() => setIsRedirecting(false), 300);
+        // }, 150);
         
         return;
       }
@@ -149,18 +149,18 @@ function ProtectedRouteWrapper({ children }: { children: React.ReactNode }) {
         setIsRedirecting(true);
         
         // Small delay for smoother transition
-        redirectTimeoutRef.current = setTimeout(() => {
-          router.replace("/(home)");
-          setTimeout(() => setIsRedirecting(false), 300);
-        }, 150);
+        // redirectTimeoutRef.current = setTimeout(() => {
+        //   router.replace("/(home)");
+        //   setTimeout(() => setIsRedirecting(false), 300);
+        // }, 150);
       }
     }
   }, [segments, pathname, isAuthenticated, isCheckingAuth, hasChecked, router, isRedirecting]);
 
   // Show loading while checking auth or redirecting
-  if (isCheckingAuth || isRedirecting) {
-    return <LoadingScreen message={isRedirecting ? "Redirecting..." : "Checking authentication..."} />;
-  }
+  // if (isCheckingAuth || isRedirecting) {
+  //   return <LoadingScreen message={isRedirecting ? "Redirecting..." : "Checking authentication..."} />;
+  // }
 
   return <>{children}</>;
 }
@@ -223,7 +223,6 @@ export default function RootLayout() {
                 <Stack.Screen name="(entry)" options={{ headerShown: false }} />
                 <Stack.Screen name="video-call" options={{ headerShown: false }} />
                 <Stack.Screen name="outgoing-call" options={{ headerShown: false }} />
-                <Stack.Screen name="test-call" options={{ headerShown: false }} />
                 <Stack.Screen name="+not-found" />
               </Stack>
             </CallProvider>

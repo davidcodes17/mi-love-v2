@@ -137,7 +137,7 @@ const Wallet = () => {
                 {loadingWallet ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <ThemedText fontSize={42} fontWeight="bold" color="#FFFFFF">
+                  <ThemedText fontSize={42} color="#FFFFFF">
                     {balance.toLocaleString()}
                     <ThemedText fontSize={16} color="#FFFFFF" opacity={0.8}>
                       {" "}coins

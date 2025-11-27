@@ -380,7 +380,7 @@ const Chats: React.FC = () => {
           }
         );
         setSending(false);
-        fetchMessages();
+        // fetchMessages();
       } catch (err) {
         console.warn("Send failed", err);
         toast.show({
@@ -419,7 +419,7 @@ const Chats: React.FC = () => {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      style={{ flex: 1, paddingTop : 20 }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       {/* Confetti animation - positioned absolutely to cover entire screen */}

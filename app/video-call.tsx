@@ -50,6 +50,9 @@ export default function VideoCallScreen() {
           console.log("Permission request failed, continuing:", permError);
         }
 
+        // Add delay before joining to ensure native modules are ready
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         // Join the call
         const joinedCall = await joinCall(channel, actualCallType);
 
@@ -57,6 +60,8 @@ export default function VideoCallScreen() {
           throw new Error("Failed to join call");
         }
 
+        // Add small delay before setting call to ensure it's stable
+        await new Promise(resolve => setTimeout(resolve, 300));
         setCall(joinedCall);
         setIsLoading(false);
       } catch (err: any) {
@@ -93,6 +98,21 @@ export default function VideoCallScreen() {
     );
   }
 
+  // Don't render StreamCall until call is fully ready
+  if (!call) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#000" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>
+            {error || "Connecting to call..."}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
@@ -105,42 +125,97 @@ export default function VideoCallScreen() {
 
 // Call UI component
 function CallUI({ isAudioCall }: { isAudioCall: boolean }) {
-  const { useCallState, useCameraState, useMicrophoneState } = useCallStateHooks();
-  const { call, callingState } = useCallState();
-  const { camera, isCameraEnabled } = useCameraState();
-  const { microphone, isMicrophoneEnabled } = useMicrophoneState();
   const router = require("expo-router").router;
+  const [callReady, setCallReady] = useState(false);
+
+  // Use hooks with error handling
+  let call: any = null;
+  let callingState: CallingState | null = null;
+  let camera: any = null;
+  let isCameraEnabled = false;
+  let microphone: any = null;
+  let isMicrophoneEnabled = false;
+
+  try {
+    const { useCallState, useCameraState, useMicrophoneState } = useCallStateHooks();
+    const callState = useCallState();
+    const cameraState = useCameraState();
+    const micState = useMicrophoneState();
+    
+    call = callState?.call || null;
+    callingState = callState?.callingState || null;
+    camera = cameraState?.camera || null;
+    isCameraEnabled = cameraState?.isCameraEnabled || false;
+    microphone = micState?.microphone || null;
+    isMicrophoneEnabled = micState?.isMicrophoneEnabled || false;
+  } catch (error: any) {
+    console.error("Error accessing call state hooks:", error);
+    // Return loading state if hooks fail
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Initializing call...</Text>
+      </View>
+    );
+  }
+
+  // Wait for call to be ready
+  useEffect(() => {
+    if (call && callingState === CallingState.JOINED) {
+      // Add delay to ensure native modules are ready
+      setTimeout(() => {
+        setCallReady(true);
+      }, 500);
+    } else {
+      setCallReady(false);
+    }
+  }, [call, callingState]);
 
   const toggleMicrophone = async () => {
     try {
+      if (!microphone) {
+        console.warn("Microphone not available");
+        return;
+      }
       if (isMicrophoneEnabled) {
         await microphone.disable();
       } else {
         await microphone.enable();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error toggling microphone:", error);
+      toast.error("Failed to toggle microphone");
     }
   };
 
   const toggleCamera = async () => {
     try {
+      if (!camera) {
+        console.warn("Camera not available");
+        return;
+      }
       if (isCameraEnabled) {
         await camera.disable();
       } else {
         await camera.enable();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error toggling camera:", error);
+      toast.error("Failed to toggle camera");
     }
   };
 
   const endCall = async () => {
     try {
-      await call.leave();
+      if (call) {
+        await call.leave().catch((err: any) => {
+          console.error("Error leaving call:", err);
+        });
+      }
       router.back();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error ending call:", error);
+      // Always navigate back even if leave fails
       router.back();
     }
   };
@@ -148,18 +223,22 @@ function CallUI({ isAudioCall }: { isAudioCall: boolean }) {
   // Disable camera for audio calls
   useEffect(() => {
     if (isAudioCall && isCameraEnabled && camera) {
-      camera.disable().catch(() => {
-        // Ignore errors
-      });
+      // Add delay to ensure camera is ready
+      setTimeout(() => {
+        camera.disable().catch((err: any) => {
+          console.log("Failed to disable camera for audio call:", err);
+          // Ignore errors
+        });
+      }, 500);
     }
   }, [isAudioCall, isCameraEnabled, camera]);
 
-  if (callingState !== CallingState.JOINED) {
+  if (!call || callingState !== CallingState.JOINED || !callReady) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>
-          {callingState === CallingState.JOINING ? "Joining..." : "Connecting..."}
+          {callingState === CallingState.JOINING ? "Joining..." : callingState === CallingState.RINGING ? "Ringing..." : "Connecting..."}
         </Text>
       </View>
     );
