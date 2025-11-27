@@ -1,55 +1,94 @@
-import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { StyleSheet, View, TouchableOpacity, StatusBar, Text } from "react-native";
+import { useLocalSearchParams, router } from "expo-router";
+import { StyleSheet, View, TouchableOpacity, StatusBar, Text, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useCall } from "@/context/call-provider";
-import { 
-  useCall as useStreamCall,
-  StreamVideo,
+import {
   StreamCall,
   CallContent,
-  useConnectedUser
+  CallingState,
+  useCallStateHooks,
 } from "@stream-io/video-react-native-sdk";
 import { COLORS } from "@/config/theme";
-import { ArrowLeft2, CallSlash } from "iconsax-react-native";
-import { router } from "expo-router";
-import ThemedView from "@/components/ui/themed-view";
+import { ArrowLeft2, CallSlash, Microphone2, MicrophoneSlash, Video, VideoSlash } from "iconsax-react-native";
+import { requestCallPermissions, requestMicrophonePermission } from "@/utils/permissions-utils.utils";
+import { toast } from "@/components/lib/toast-manager";
 
 export default function VideoCallScreen() {
-  const { channel } = useLocalSearchParams<{ channel: string }>();
-  const { joinCall, client } = useCall();
+  const { channel, callType } = useLocalSearchParams<{
+    channel: string;
+    callType?: "audio" | "video";
+  }>();
+  const { joinCall, client, isInitialized } = useCall();
+  const [call, setCall] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const activeCall = useStreamCall();
-  
+  const [error, setError] = useState<string | null>(null);
+
+  const actualCallType = callType || (channel?.startsWith("video-") ? "video" : "audio");
+  const isAudioCall = actualCallType === "audio";
+
   useEffect(() => {
+    if (!channel || !client || !isInitialized) {
+      setError("Call service not ready");
+      setIsLoading(false);
+      return;
+    }
+
     const setupCall = async () => {
-      if (!channel || !client) return;
-      
       try {
         setIsLoading(true);
-        await joinCall(channel);
-        setIsLoading(false);
-      } catch (err) {
-        console.error("Failed to join call:", err);
-        router.back();
-      }
-    };
-    
-    setupCall();
-    
-    return () => {
-      // Clean up when component unmounts
-      if (activeCall) {
-        activeCall.leave();
-      }
-    };
-  }, [channel, client]);
+        setError(null);
 
-  // If call isn't ready yet, show loading state
-  if (isLoading || !activeCall || !client) {
+        // Request permissions
+        try {
+          if (isAudioCall) {
+            await requestMicrophonePermission(false);
+          } else {
+            await requestCallPermissions(false);
+          }
+        } catch (permError) {
+          console.log("Permission request failed, continuing:", permError);
+        }
+
+        // Join the call
+        const joinedCall = await joinCall(channel, actualCallType);
+
+        if (!joinedCall) {
+          throw new Error("Failed to join call");
+        }
+
+        setCall(joinedCall);
+        setIsLoading(false);
+      } catch (err: any) {
+        console.error("Error setting up call:", err);
+        setError(err?.message || "Failed to connect to call");
+        setIsLoading(false);
+        toast.error("Failed to connect to call");
+        setTimeout(() => router.back(), 2000);
+      }
+    };
+
+    setupCall();
+
+    return () => {
+      if (call) {
+        call.leave().catch((err: any) => {
+          console.log("Error leaving call on unmount:", err);
+        });
+      }
+    };
+  }, [channel, client, isInitialized, actualCallType, isAudioCall]);
+
+  if (isLoading || !call) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Connecting to call...</Text>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#000" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>
+            {error || "Connecting to call..."}
+          </Text>
+        </View>
       </SafeAreaView>
     );
   }
@@ -57,97 +96,120 @@ export default function VideoCallScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
-      
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => {
-            if (activeCall) {
-              activeCall.leave();
-            }
-            router.back();
-          }}
-        >
-          <ArrowLeft2 color="#FFFFFF" size={24} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{channel || "Video Call"}</Text>
-      </View>
-
-      <View style={styles.callContainer}>
-        {/* The Stream SDK will render the call UI */}
-        <StreamVideo client={client}>
-          <StreamCall call={activeCall}>
-            <CallUI />
-          </StreamCall>
-        </StreamVideo>
-      </View>
+      <StreamCall call={call}>
+        <CallUI isAudioCall={isAudioCall} />
+      </StreamCall>
     </SafeAreaView>
   );
 }
 
-// Simplified UI component for call
-function CallUI() {
-  const activeCall = useStreamCall();
-  
-  // End the call and go back
-  const endCall = () => {
-    if (activeCall) {
-      activeCall.leave();
+// Call UI component
+function CallUI({ isAudioCall }: { isAudioCall: boolean }) {
+  const { useCallState, useCameraState, useMicrophoneState } = useCallStateHooks();
+  const { call, callingState } = useCallState();
+  const { camera, isCameraEnabled } = useCameraState();
+  const { microphone, isMicrophoneEnabled } = useMicrophoneState();
+  const router = require("expo-router").router;
+
+  const toggleMicrophone = async () => {
+    try {
+      if (isMicrophoneEnabled) {
+        await microphone.disable();
+      } else {
+        await microphone.enable();
+      }
+    } catch (error) {
+      console.error("Error toggling microphone:", error);
+    }
+  };
+
+  const toggleCamera = async () => {
+    try {
+      if (isCameraEnabled) {
+        await camera.disable();
+      } else {
+        await camera.enable();
+      }
+    } catch (error) {
+      console.error("Error toggling camera:", error);
+    }
+  };
+
+  const endCall = async () => {
+    try {
+      await call.leave();
+      router.back();
+    } catch (error) {
+      console.error("Error ending call:", error);
       router.back();
     }
   };
-  
-  // Toggle microphone
-  const toggleMic = async () => {
-    try {
-      if (!activeCall) return;
-      
-      const isMuted = activeCall.microphone.enabled;
-      if (isMuted) {
-        await activeCall.microphone.enable();
-      } else {
-        await activeCall.microphone.disable();
-      }
-      console.log(`Microphone ${isMuted ? 'enabled' : 'muted'}`);
-    } catch (error) {
-      console.error('Failed to toggle microphone:', error);
+
+  // Disable camera for audio calls
+  useEffect(() => {
+    if (isAudioCall && isCameraEnabled && camera) {
+      camera.disable().catch(() => {
+        // Ignore errors
+      });
     }
-  };
-  
-  // Toggle camera
-  const toggleCamera = async () => {
-    try {
-      if (!activeCall) return;
-      
-      const isEnabled = activeCall.camera.enabled;
-      if (isEnabled) {
-        await activeCall.camera.disable();
-      } else {
-        await activeCall.camera.enable();
-      }
-      console.log(`Camera ${isEnabled ? 'disabled' : 'enabled'}`);
-    } catch (error) {
-      console.error('Failed to toggle camera:', error);
-    }
-  };
-  
+  }, [isAudioCall, isCameraEnabled, camera]);
+
+  if (callingState !== CallingState.JOINED) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>
+          {callingState === CallingState.JOINING ? "Joining..." : "Connecting..."}
+        </Text>
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.callUIContainer}>
-      {/* Main call content showing participants */}
-      <CallContent />
-      
-      {/* Control buttons */}
-      <View style={styles.controlsContainer}>
-        <TouchableOpacity style={styles.controlButton} onPress={toggleMic}>
-          <Text style={styles.controlText}>Mic</Text>
+    <View style={styles.callContainer}>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backButton} onPress={endCall}>
+          <ArrowLeft2 color="#FFFFFF" size={24} />
         </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.controlButton} onPress={toggleCamera}>
-          <Text style={styles.controlText}>Camera</Text>
+        <Text style={styles.headerTitle}>
+          {isAudioCall ? "Audio Call" : "Video Call"}
+        </Text>
+      </View>
+
+      <View style={styles.contentContainer}>
+        <CallContent />
+      </View>
+
+      <View style={styles.controls}>
+        {!isAudioCall && (
+          <TouchableOpacity
+            style={[styles.controlButton, !isCameraEnabled && styles.controlButtonDisabled]}
+            onPress={toggleCamera}
+          >
+            {isCameraEnabled ? (
+              <Video color="#FFFFFF" size={24} />
+            ) : (
+              <VideoSlash color="#FFFFFF" size={24} />
+            )}
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity
+          style={[styles.controlButton, !isMicrophoneEnabled && styles.controlButtonDisabled]}
+          onPress={toggleMicrophone}
+        >
+          {isMicrophoneEnabled ? (
+            <Microphone2 color="#FFFFFF" size={24} />
+          ) : (
+            <MicrophoneSlash color="#FFFFFF" size={24} />
+          )}
         </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.endCallButton} onPress={endCall}>
-          <CallSlash size={24} color="#FFFFFF" />
+
+        <TouchableOpacity
+          style={[styles.controlButton, styles.endCallButton]}
+          onPress={endCall}
+        >
+          <CallSlash color="#FFFFFF" size={24} />
         </TouchableOpacity>
       </View>
     </View>
@@ -157,74 +219,60 @@ function CallUI() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: "#000",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#1a1a1a',
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-  },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    marginLeft: 16,
-    fontWeight: '600',
-  },
-  backButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    marginTop: 16,
   },
   callContainer: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
   },
-  callUIContainer: {
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  backButton: {
+    marginRight: 16,
+  },
+  headerTitle: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  contentContainer: {
     flex: 1,
-    justifyContent: 'flex-end', // Position controls at bottom
-    padding: 16,
   },
-  controlsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
+  controls: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    gap: 16,
   },
   controlButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 8,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  controlText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
+  controlButtonDisabled: {
+    backgroundColor: "rgba(255, 0, 0, 0.5)",
   },
   endCallButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#FF3B30',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 8,
+    backgroundColor: "#FF3B30",
   },
 });

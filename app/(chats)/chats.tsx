@@ -12,7 +12,17 @@ import {
   ActivityIndicator,
   Keyboard,
   RefreshControl,
+  Dimensions,
 } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  withSpring,
+  FadeIn,
+  SlideInRight,
+  SlideInLeft,
+} from "react-native-reanimated";
 import {
   Alarm,
   Gift as GiftIcon,
@@ -50,7 +60,7 @@ type Params = {
   name?: string;
 };
 
-const DEFAULT_USER_IMAGE = require("@/assets/users.jpg");
+const DEFAULT_USER_IMAGE = require("@/assets/user.png");
 
 const Chats: React.FC = () => {
   const { chatId, name, profileUrl, userId } =
@@ -96,6 +106,7 @@ const Chats: React.FC = () => {
       try {
         const res = await useGetAllGifts();
         if (!mounted) return;
+        console.log(res,"SSS")
         setGifts(res?.data ?? []);
       } catch (err) {
         console.warn("Failed to fetch gifts", err);
@@ -174,7 +185,7 @@ const Chats: React.FC = () => {
 
         const socket = io(
           process.env.EXPO_PUBLIC_API_URL ||
-          "https://mi-love-api-production.up.railway.app/chat",
+          "https://z91gp9m2-9999.uks1.devtunnels.ms/chat",
           {
             transports: ["websocket"],
             extraHeaders: { Authorization: `Bearer ${token}` },
@@ -411,19 +422,41 @@ const Chats: React.FC = () => {
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <SafeAreaView style={styles.container}>
-        <HeaderChat message={messages[messages.length - 1]} profileUrl={profileUrl ?? ""} name={name ?? "Unknown"} />
-
-        {showGiftAnimation && (
+      {/* Confetti animation - positioned absolutely to cover entire screen */}
+      {showGiftAnimation && (
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: Dimensions.get("window").width,
+            height: Dimensions.get("window").height,
+            zIndex: 10000,
+            elevation: 10000,
+          }}
+          pointerEvents="none"
+        >
           <LottieView
             ref={giftAnimationRef}
             source={require("@/assets/jsons/splash.json")}
-            style={StyleSheet.absoluteFill}
+            style={{
+              width: "100%",
+              height: "100%",
+            }}
             autoPlay
             loop={false}
             onAnimationFinish={() => setShowGiftAnimation(false)}
           />
-        )}
+        </View>
+      )}
+
+      <SafeAreaView style={styles.container}>
+        <HeaderChat 
+          message={messages[messages.length - 1]} 
+          profileUrl={profileUrl ?? ""} 
+          name={name ?? "Unknown"}
+          recipientId={currentUserId}
+        />
 
 
         <FlatList
@@ -431,11 +464,12 @@ const Chats: React.FC = () => {
           data={sortedMessages}
           keyExtractor={(item) => item.id ?? `${item.created_at ?? Date.now()}`}
           contentContainerStyle={styles.messagesList}
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
             <MessageBubble
               profileUrl={profileUrl}
               item={item}
               currentUserId={currentUserId}
+              index={index}
             />
           )}
           ListEmptyComponent={renderEmpty}
@@ -453,12 +487,18 @@ const Chats: React.FC = () => {
         <BottomSheet
           ref={bottomSheetRef}
           index={-1}
-          // snapPoints={["45%", "50%"]}
+          snapPoints={["50%", "75%"]}
           enablePanDownToClose
           style={{
-            zIndex: 999
+            zIndex: 9999,
+            elevation: 9999,
+          }}
+          containerStyle={{
+            zIndex: 9999,
+            elevation: 9999,
           }}
           backdropComponent={BottomSheetBackdrop}
+          enableDynamicSizing={false}
         >
           <BottomSheetFlatList
             data={gifts}
@@ -520,41 +560,64 @@ export const MessageBubble: React.FC<{
   item: ChatMessage;
   currentUserId: string;
   profileUrl?: string;
-}> = ({ item, currentUserId, profileUrl }) => {
+  index?: number;
+}> = ({ item, currentUserId, profileUrl, index = 0 }) => {
   const isMe = item.userId === currentUserId;
   const { user } = useUserStore();
 
   if (item.type === "announcement") {
     return (
-      <View style={styles.announcementContainer}>
+      <Animated.View
+        entering={FadeIn.duration(400).delay(index * 50)}
+        style={styles.announcementContainer}
+      >
         <Alarm size={18} color={COLORS.primary} variant="Bold" />
         <ThemedText fontSize={14} textAlign="center" color={COLORS.primary} fontWeight="600">
           {item.content}
         </ThemedText>
-      </View>
+      </Animated.View>
     );
   }
 
   return (
-    <View style={[styles.messageRow, isMe ? styles.otherMessageRow : styles.myMessageRow]}>
+    <Animated.View
+      entering={
+        isMe
+          ? SlideInRight.duration(300).springify().damping(15)
+          : SlideInLeft.duration(300).springify().damping(15)
+      }
+      style={[styles.messageRow, isMe ? styles.otherMessageRow : styles.myMessageRow]}
+    >
       {/* sender avatar on left when sender is me (as requested previously) */}
-      {isMe && profileUrl && (
-        <Image
-          source={user?.profile_picture ? { uri: generateURL({ url: profileUrl }) } : DEFAULT_USER_IMAGE}
-          style={styles.avatar}
-        />
+      {isMe && (
+        <Animated.View entering={FadeIn.duration(300).delay(100)}>
+          <Image
+            source={
+              profileUrl && user?.profile_picture?.url
+                ? { uri: generateURL({ url: profileUrl }) }
+                : DEFAULT_USER_IMAGE
+            }
+            defaultSource={DEFAULT_USER_IMAGE}
+            onError={() => {}}
+            style={styles.avatar}
+          />
+        </Animated.View>
       )}
       {item.file?.url ? (
         // show image preview inside bubble if file exists (optimistic or real)
-        <Image
-          source={{ uri: generateURL({ url: item.file.url }) }}
-          style={{ width: 180, height: 180, borderRadius: 12 }}
-        />
+        <Animated.View entering={FadeIn.duration(300)}>
+          <Image
+            source={{ uri: generateURL({ url: item.file.url }) }}
+            style={{ width: 180, height: 180, borderRadius: 12 }}
+          />
+        </Animated.View>
       ) : null}
 
-      {!item.file?.url && item?.content &&
-        <View style={[styles.messageBubble, isMe ? styles.otherMessage : styles.myMessage]}>
-
+      {!item.file?.url && item?.content && (
+        <Animated.View
+          entering={FadeIn.duration(300).delay(50)}
+          style={[styles.messageBubble, isMe ? styles.otherMessage : styles.myMessage]}
+        >
           <ThemedText color={isMe ? "#000" : "#fff"}>{item.content}</ThemedText>
 
           {item.created_at && (
@@ -568,12 +631,17 @@ export const MessageBubble: React.FC<{
               {new Date(item.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </ThemedText>
           )}
-        </View>
-      }
-      {!isMe && (
-        <Image source={user ? { uri: generateURL({ url: user.profile_picture.url }) } : DEFAULT_USER_IMAGE} style={styles.avatar} />
+        </Animated.View>
       )}
-    </View>
+      {!isMe && (
+        <Animated.View entering={FadeIn.duration(300).delay(100)}>
+          <Image
+            source={user ? { uri: generateURL({ url: user.profile_picture.url }) } : DEFAULT_USER_IMAGE}
+            style={styles.avatar}
+          />
+        </Animated.View>
+      )}
+    </Animated.View>
   );
 };
 

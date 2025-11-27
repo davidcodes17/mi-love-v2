@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Keyboard } from "react-native";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
-import BackButton from "@/components/common/back-button";
 import AppleOTPInput from "@/components/common/apple-otp-input";
 import NativeButton from "@/components/ui/native-button";
 import { useSendOtp, useVerifyOtp } from "@/hooks/auth-hooks.hooks";
-import toast from "@originaltimi/rn-toast";
+import { toast } from "@/components/lib/toast-manager";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface Step2Props {
@@ -58,26 +57,14 @@ const Step2 = ({
       });
 
       if (response?.message) {
-        toast({
-          title: "OTP Resent",
-          type: "success",
-          duration: 2000,
-        });
+        toast.success("OTP Resent");
 
         setTimer(60); // Reset timer
       } else {
-        toast({
-          title: response?.message || "Failed to resend OTP",
-          type: "error",
-          duration: 2000,
-        });
+        toast.error(response?.message || "Failed to resend OTP");
       }
     } catch (error: any) {
-      toast({
-        title: error?.message || "Resend failed",
-        type: "error",
-        duration: 2000,
-      });
+      toast.error(error?.message || "Resend failed");
     } finally {
       setResendLoading(false);
     }
@@ -96,32 +83,32 @@ const Step2 = ({
       Keyboard.dismiss();
 
       if (response?.token) {
-        toast({
-          title: "Email Verified Successfully",
+        toast.show({
           type: "success",
+          title: "Email Verified Successfully",
           position: "bottom",
-          duration: 2000,
+          visibilityTime: 2000,
         });
 
         await AsyncStorage.setItem("token", response?.token);
 
         onNext();
       } else {
-        toast({
-          title: response?.message || "Invalid OTP",
+        toast.show({
           type: "error",
+          title: response?.message || "Invalid OTP",
           position: "bottom",
-          duration: 2000,
+          visibilityTime: 2000,
         });
       }
     } catch (error: any) {
       console.error("OTP Verification Error:", error);
 
-      toast({
-        title: error?.message || "Verification failed",
+      toast.show({
         type: "error",
+        title: error?.message || "Verification failed",
         position: "bottom",
-        duration: 2000,
+        visibilityTime: 2000,
       });
     } finally {
       setLoading(false);
@@ -131,7 +118,6 @@ const Step2 = ({
   return (
     <ThemedView>
       <ThemedView marginBottom={20}>
-        <BackButton />
         <ThemedText marginTop={20} fontSize={30}>
           Verify your email
         </ThemedText>

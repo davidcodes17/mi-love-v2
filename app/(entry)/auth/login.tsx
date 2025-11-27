@@ -17,15 +17,18 @@ import * as Yup from "yup";
 import {
   loginServiceProxy,
   useNotificationService,
+  useGetProfile,
 } from "@/hooks/auth-hooks.hooks";
 import { ValidationError } from "yup";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import toast from "@originaltimi/rn-toast";
+import { toast } from "@/components/lib/toast-manager";
+import { useUserStore } from "@/store/store";
 import { Link } from "expo-router";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
+import { registerForPushNotificationsAsync } from "@/utils/fcm-token.utils";
 
 const loginSchema = Yup.object({
   email: Yup.string().email("Invalid email").required("Email is required"),
@@ -46,6 +49,7 @@ Notifications.setNotificationHandler({
 const LoginScreen = () => {
   const [data, setData] = useState<LoginPayLoad>({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
+  const { user, setUser } = useUserStore();
 
   const [expoPushToken, setExpoPushToken] = useState("");
   const [channels, setChannels] = useState<Notifications.NotificationChannel[]>(
@@ -55,16 +59,58 @@ const LoginScreen = () => {
     Notifications.Notification | undefined
   >(undefined);
 
+  // Check if user is already authenticated
   useEffect(() => {
-    registerForPushNotificationsAsync().then(
-      (token) => token && setExpoPushToken(token)
-    );
+    const checkAuth = async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+        
+        // If user is already in store, they're logged in
+        if (token && user) {
+          router.replace("/home");
+          return;
+        }
+        
+        // If token exists but user not in store, validate token
+        if (token && !user) {
+          try {
+            const profileData = await useGetProfile();
+            if (profileData?.data && !profileData?.error) {
+              // Valid token, set user and redirect
+              setUser(profileData.data);
+              router.replace("/home");
+              return;
+            } else {
+              // Invalid token, clear it (will show login screen)
+              await AsyncStorage.removeItem("token");
+            }
+          } catch (err) {
+            // Token invalid, clear it
+            await AsyncStorage.removeItem("token");
+          }
+        }
+      } catch (err) {
+        console.error("Error checking auth:", err);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  useEffect(() => {
+    // Register for push notifications
+    registerForPushNotificationsAsync().then((token) => {
+      if (token) {
+        setExpoPushToken(token);
+      }
+    });
 
     if (Platform.OS === "android") {
       Notifications.getNotificationChannelsAsync().then((value) =>
         setChannels(value ?? [])
       );
     }
+    
     const notificationListener = Notifications.addNotificationReceivedListener(
       (notification) => {
         setNotification(notification);
@@ -73,7 +119,7 @@ const LoginScreen = () => {
 
     const responseListener =
       Notifications.addNotificationResponseReceivedListener((response) => {
-        console.log(response);
+        console.log("Notification response:", response);
       });
 
     return () => {
@@ -81,11 +127,6 @@ const LoginScreen = () => {
       responseListener.remove();
     };
   }, []);
-
-  const sendFcm = async () => {
-    const response = await useNotificationService({ token: expoPushToken });
-    console.log(response, "GETETE")
-  };
 
 
   const handleLogin = async () => {
@@ -98,44 +139,60 @@ const LoginScreen = () => {
       setLoading(false);
 
       if (response?.access_token) {
-        toast({
-          title: "Login successful!",
-          type: "success",
-          position: "top",
-          // icon: <CloseCircle color="#000" size={20} />,
-          duration: 2,
-        });
+        toast.success("Login successful!");
 
         console.log(response);
-        // e.g., navigate to dashboard
+        // Save token
         await AsyncStorage.setItem("token", response?.access_token);
-        sendFcm();
-        router.push("/home");
+        
+        // Fetch and set user profile for seamless experience
+        try {
+          const profileData = await useGetProfile();
+          if (profileData?.data && !profileData?.error) {
+            setUser(profileData.data);
+          }
+        } catch (profileErr) {
+          console.error("Failed to fetch profile after login:", profileErr);
+          // Continue anyway, profile will be fetched on home screen
+        }
+        
+        // Send FCM token after authentication
+        if (expoPushToken) {
+          try {
+            await useNotificationService({ token: expoPushToken });
+            console.log("✅ FCM token sent after login");
+          } catch (fcmError) {
+            console.error("Failed to send FCM token:", fcmError);
+            // Don't block login if FCM fails
+          }
+        } else {
+          // If token not ready yet, try to get it and send
+          registerForPushNotificationsAsync().then(async (token) => {
+            if (token) {
+              try {
+                await useNotificationService({ token });
+                console.log("✅ FCM token sent after login (delayed)");
+              } catch (fcmError) {
+                console.error("Failed to send FCM token (delayed):", fcmError);
+              }
+            }
+          });
+        }
+        
+        router.replace("/home");
         return;
       } else {
-        toast({
-          title: response?.message || "Login failed",
-          type: "error",
-          position: "top",
-        });
+        toast.error(response?.message || "Login failed");
       }
     } catch (error) {
       setLoading(false);
 
       if (error instanceof ValidationError) {
         const firstError = error.errors?.[0] || "Invalid input";
-        toast({
-          title: firstError,
-          type: "error",
-          position: "top",
-        });
+        toast.error(firstError);
       } else {
         console.error("Login Error:", error);
-        toast({
-          title: "Something went wrong. Please try again.",
-          type: "error",
-          position: "top",
-        });
+        toast.error("Something went wrong. Please try again.");
       }
     }
   };
@@ -238,53 +295,3 @@ const LoginScreen = () => {
 };
 
 export default LoginScreen;
-
-async function registerForPushNotificationsAsync() {
-  let token;
-
-  if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync("myNotificationChannel", {
-      name: "A channel is needed for the permissions prompt to appear",
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: "#FF231F7C",
-    });
-  }
-
-  if (Device.isDevice) {
-    const { status: existingStatus } =
-      await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== "granted") {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    if (finalStatus !== "granted") {
-      alert("Failed to get push token for push notification!");
-      return;
-    }
-    // Learn more about projectId:
-    // https://docs.expo.dev/push-notifications/push-notifications-setup/#configure-projectid
-    // EAS projectId is used here.
-    try {
-      const projectId =
-        Constants?.expoConfig?.extra?.eas?.projectId ??
-        Constants?.easConfig?.projectId;
-      if (!projectId) {
-        throw new Error("Project ID not found");
-      }
-      token = (
-        await Notifications.getExpoPushTokenAsync({
-          projectId,
-        })
-      ).data;
-      console.log(token);
-    } catch (e) {
-      token = `${e}`;
-    }
-  } else {
-    alert("Must use physical device for Push Notifications");
-  }
-
-  return token;
-}

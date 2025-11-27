@@ -4,238 +4,285 @@ import {
   useContext,
   useEffect,
   useState,
+  useCallback,
 } from "react";
 import {
   CallingState,
-  IncomingCall,
   StreamCall,
   StreamVideo,
   StreamVideoClient,
   useCalls,
-  useCallStateHooks,
   User,
-  useCall as useStreamCall,
 } from "@stream-io/video-react-native-sdk";
 import { useUserStore } from "@/store/store";
-import { Alert } from "react-native";
-
-// Import Call type
+import { getStreamToken } from "@/services/stream-service.service";
+import { IncomingCallScreen } from "@/components/common/calls/incoming-call-screen";
 import type { Call } from "@stream-io/video-react-native-sdk";
 
 interface CallContextType {
   client: StreamVideoClient | null;
-  createCall: (userId: string, callType?: string) => Promise<Call | undefined>;
-  joinCall: (callId: string, callType?: string) => Promise<Call | undefined>;
+  createCall: (userId: string, callType?: "audio" | "video") => Promise<Call | undefined>;
+  joinCall: (callId: string, callType?: "audio" | "video") => Promise<Call | undefined>;
+  activeCall: Call | null;
+  callState: CallingState | null;
+  isInitialized: boolean;
 }
 
-const callContext = createContext<CallContextType>({
+const CallContext = createContext<CallContextType>({
   client: null,
   createCall: async () => undefined,
   joinCall: async () => undefined,
+  activeCall: null,
+  callState: null,
+  isInitialized: false,
 });
 
-// GetStream API key and token
-const apiKey = "mmhfdzb5evj2";
-// These tokens need to be properly signed with the API secret in a production environment
-// The tokens below are just examples and may not be valid
-const userTokens: Record<string, string> = {
-  user1:
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidXNlcjEifQ.W4x-FSYSxEpzvV4s2lCrWp8O3YmYMSOGLaXZwAzp26s",
-  user2:
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidXNlcjIifQ.1j31hu5jOeclEczJxDBJ2rlr-s7Wac9FtiwMsGd-cOw",
-};
+// GetStream API key
+const API_KEY = "jm2dt86gx2h8";
 
 export const CallProvider = ({ children }: { children: React.ReactNode }) => {
   const [client, setClient] = useState<StreamVideoClient | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [activeCall, setActiveCall] = useState<Call | null>(null);
+  const [callState, setCallState] = useState<CallingState | null>(null);
   const { user: userStore } = useUserStore();
-  // Setup user for GetStream
-  const user: User = {
-    id: userStore?.username == "areegbedavid" ? "user1" : "user2", // Use hardcoded test user to match the token
-    name: userStore?.username || "Guest User",
-    image: userStore?.profile_picture?.url,
-  };
 
+  // Initialize Stream client
   useEffect(() => {
-    // Only initialize if we have a user
     if (!userStore?.id) {
-      console.log("No user available for call initialization");
+      console.log("CallProvider: No user ID available, skipping initialization");
       return;
     }
 
-    try {
-      // Get token based on user ID
-      const token = userTokens[user.id];
+    let mounted = true;
+    let streamClient: StreamVideoClient | null = null;
 
-      if (!token) {
-        console.error("No valid token for user:", user.id);
-        return;
-      }
-
-      console.log(
-        "Initializing client for:",
-        user.id,
-        "with token available:",
-        !!token
-      );
-
-      const myClient = StreamVideoClient.getOrCreateInstance({
-        apiKey,
-        user,
-        token, // Use token from our tokens object
-        options: {
-          rejectCallWhenBusy: true, // Automatically reject calls when user is busy
-          logLevel: "debug", // Increase log level for debugging
-        },
-      });
-
-      setClient(myClient);
-      console.log("GetStream video client initialized for user:", user.id);
-
-      // Set up event handlers for debugging connection issues
-      const connectionChangedHandler = (event: any) => {
-        console.log("Connection state changed:", event.type, event.online);
-      };
-
-      const connectionErrorHandler = (event: any) => {
-        console.error("Connection error:", event);
-      };
-
-      myClient.on("connection.changed", connectionChangedHandler);
-      myClient.on("connection.error", connectionErrorHandler);
-
-      return () => {
-        // Clean up listeners and disconnect
-        myClient.off("connection.changed", connectionChangedHandler);
-        myClient.off("connection.error", connectionErrorHandler);
-        myClient.disconnectUser();
-        setClient(null);
-      };
-    } catch (error) {
-      console.error("Error initializing GetStream client:", error);
-      Alert.alert("Error", "Failed to initialize video call service");
-    }
-  }, [userStore?.id]);
-
-  // Access current call
-  const call = useStreamCall();
-  const isCallCreatedByMe = !!call?.isCreatedByMe;
-  const { useCallCallingState } = useCallStateHooks();
-  const callingState = useCallCallingState();
-
-  // Create call function
-  const createCall = async (userId: string, callType: string = "default") => {
-    try {
-      if (!client) {
-        console.error("Client not initialized");
-        Alert.alert("Error", "Call service not ready yet. Please try again.");
-        return;
-      }
-
-      // Use a consistent call ID format with timestamp for uniqueness
-      const callId = `call-${Date.now()}-${Math.random()
-        .toString(36)
-        .substring(2, 9)}`;
-      console.log("Creating call with ID:", callId, "for user:", userId);
-
-      // Get the call instance
-      const call = client.call(callType, callId);
-
-      // Create the call with members - make sure to use the correct user IDs
-      const result = await call.getOrCreate({
-        data: {
-          members: [
-            // Add the recipient
-            { user_id: userId },
-          ],
-          custom: {
-            callInitiator: user.id, // Use the authenticated user's ID
-            type: "audio",
-          },
-        },
-      });
-
-      console.log("Call created successfully:", callId);
-      return call;
-    } catch (error) {
-      console.error("Error creating call:", error);
-      Alert.alert("Call Failed", "Unable to start call at this time");
-    }
-  };
-
-  // Join call function
-  const joinCall = async (callId: string, callType: string = "default") => {
-    try {
-      if (!client) {
-        console.error("Client not initialized");
-        Alert.alert("Error", "Call service not ready yet. Please try again.");
-        return;
-      }
-
-      console.log("Joining call with ID:", callId, "as user:", user.id);
-
+    const initialize = async () => {
       try {
-        const call = client.call(callType, callId);
+        console.log("CallProvider: Initializing Stream client for user:", userStore.id);
 
-        // Get or create the call - which will join it
-        await call.getOrCreate();
-        console.log("Call joined successfully:", callId);
+        // Fetch token
+        const tokenResponse = await getStreamToken();
+        if (!tokenResponse?.token) {
+          console.error("CallProvider: No token received");
+          return;
+        }
 
-        return call;
-      } catch (innerError) {
-        console.error("Error in call.getOrCreate:", innerError);
+        if (!mounted) return;
 
-        // Try to query the call first to see if it exists
-        const calls = await client.queryCalls({
-          filter_conditions: {
-            id: callId,
+        // Create user object
+        const user: User = {
+          id: userStore.id,
+          name: userStore.username || `${userStore.first_name || ""} ${userStore.last_name || ""}`.trim() || "User",
+          image: userStore.profile_picture?.url,
+        };
+
+        // Initialize client
+        streamClient = StreamVideoClient.getOrCreateInstance({
+          apiKey: API_KEY,
+          user,
+          token: tokenResponse.token,
+          options: {
+            logLevel: "info",
           },
         });
 
-        if (calls.calls.length > 0) {
-          console.log("Call found via query, trying to join");
-          const existingCall = client.call(callType, callId);
-          await existingCall.join();
-          return existingCall;
-        } else {
-          throw new Error("Call not found");
+        if (!mounted) {
+          streamClient.disconnectUser();
+          return;
+        }
+
+        setClient(streamClient);
+        setIsInitialized(true);
+        console.log("CallProvider: Stream client initialized successfully");
+      } catch (error) {
+        console.error("CallProvider: Error initializing client:", error);
+        if (mounted) {
+          setIsInitialized(false);
         }
       }
-    } catch (error) {
-      console.error("Error joining call:", error);
-      Alert.alert("Call Failed", "Unable to join call at this time");
+    };
+
+    // Small delay to ensure user store is ready
+    const timer = setTimeout(initialize, 500);
+
+    return () => {
+      mounted = false;
+      clearTimeout(timer);
+      if (streamClient) {
+        try {
+          streamClient.disconnectUser();
+        } catch (error) {
+          console.error("CallProvider: Error disconnecting client:", error);
+        }
+      }
+    };
+  }, [userStore?.id]);
+
+  // Create a call
+  const createCall = useCallback(async (
+    userId: string,
+    callType: "audio" | "video" = "audio"
+  ): Promise<Call | undefined> => {
+    if (!client) {
+      console.error("CallProvider: Client not initialized");
+      return undefined;
     }
-  };
 
-  if (!client) return children;
+    try {
+      const callId = `${callType}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      console.log("CallProvider: Creating call", callId, "for user:", userId);
 
-  // Show incoming call UI when receiving a call
-  if (callingState === CallingState.RINGING && !isCallCreatedByMe) {
-    return <IncomingCall />;
+      const call = client.call("default", callId);
+
+      await call.getOrCreate({
+        data: {
+          members: [{ user_id: userId }],
+          custom: {
+            type: callType,
+            callInitiator: userStore?.id,
+          },
+        },
+      });
+
+      console.log("CallProvider: Call created successfully:", callId);
+      return call;
+    } catch (error) {
+      console.error("CallProvider: Error creating call:", error);
+      return undefined;
+    }
+  }, [client, userStore?.id]);
+
+  // Join a call
+  const joinCall = useCallback(async (
+    callId: string,
+    callType: "audio" | "video" = "audio"
+  ): Promise<Call | undefined> => {
+    if (!client) {
+      console.error("CallProvider: Client not initialized");
+      return undefined;
+    }
+
+    try {
+      console.log("CallProvider: Joining call:", callId);
+
+      const call = client.call("default", callId);
+
+      // Try to get the call first
+      try {
+        await call.get();
+      } catch (error) {
+        // Call doesn't exist, create it
+        console.log("CallProvider: Call not found, creating...");
+        await call.getOrCreate({
+          data: {
+            members: [{ user_id: userStore?.id || "" }],
+            custom: {
+              type: callType,
+            },
+          },
+        });
+      }
+
+      // Join the call
+      await call.join({
+        create: false,
+      });
+
+      console.log("CallProvider: Call joined successfully:", callId);
+      return call;
+    } catch (error) {
+      console.error("CallProvider: Error joining call:", error);
+      return undefined;
+    }
+  }, [client, userStore?.id]);
+
+  // If client is not initialized, return context without StreamVideo wrapper
+  if (!client || !isInitialized) {
+    return (
+      <CallContext.Provider
+        value={{
+          client: null,
+          createCall,
+          joinCall,
+          activeCall: null,
+          callState: null,
+          isInitialized: false,
+        }}
+      >
+        {children}
+      </CallContext.Provider>
+    );
   }
 
+  // Client is ready, wrap with StreamVideo
   return (
-    <callContext.Provider value={{ client, createCall, joinCall }}>
+    <CallContext.Provider
+      value={{
+        client,
+        createCall,
+        joinCall,
+        activeCall,
+        callState,
+        isInitialized: true,
+      }}
+    >
       <StreamVideo client={client}>
-        <InternalStreamCall>{children}</InternalStreamCall>
+        <CallStateManager
+          setActiveCall={setActiveCall}
+          setCallState={setCallState}
+        >
+          {children}
+        </CallStateManager>
       </StreamVideo>
-    </callContext.Provider>
+    </CallContext.Provider>
   );
 };
 
-/*
-INTERNAL COMP REF
-*/
-const InternalStreamCall = ({ children }: { children: ReactNode }) => {
+// Internal component to manage call state
+const CallStateManager = ({
+  children,
+  setActiveCall,
+  setCallState,
+}: {
+  children: ReactNode;
+  setActiveCall: (call: Call | null) => void;
+  setCallState: (state: CallingState | null) => void;
+}) => {
   const calls = useCalls();
-  return calls.length > 0 ? (
-    <StreamCall call={calls[0]}>{children}</StreamCall>
-  ) : (
-    <>{children}</>
+  const activeCall = calls.length > 0 ? calls[0] : null;
+  const callingState = activeCall?.state?.callingState || null;
+
+  useEffect(() => {
+    setActiveCall(activeCall || null);
+    setCallState(callingState);
+  }, [activeCall, callingState, setActiveCall, setCallState]);
+
+  // Check for incoming call
+  const incomingCall = calls.find(
+    (call) =>
+      call.state?.callingState === CallingState.RINGING && !call.isCreatedByMe
   );
+
+  // Show incoming call screen
+  if (incomingCall) {
+    return (
+      <StreamCall call={incomingCall}>
+        <IncomingCallScreen />
+      </StreamCall>
+    );
+  }
+
+  // Wrap active call if exists
+  if (activeCall) {
+    return <StreamCall call={activeCall}>{children}</StreamCall>;
+  }
+
+  return <>{children}</>;
 };
 
 export const useCall = () => {
-  const context = useContext(callContext);
+  const context = useContext(CallContext);
   if (!context) {
     throw new Error("useCall must be used within a CallProvider");
   }

@@ -67,11 +67,12 @@ const FriendCompo = ({
         <ThemedView flexDirection="row" alignItems="center" gap={10}>
           <Image
             source={
-              imageError
-                ? require("@/assets/users.jpg")
-                : { uri: generateURL({ url: user?.profile_picture?.url }) }
+              imageError || !user?.profile_picture?.url
+                ? require("@/assets/user.png")
+                : { uri: generateURL({ url: user.profile_picture.url }) }
             }
             onError={() => setImageError(true)}
+            defaultSource={require("@/assets/user.png")}
             style={{ width: 45, height: 45, borderRadius: 200 }}
             resizeMode="cover"
           />

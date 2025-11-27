@@ -13,11 +13,13 @@ import { Heart } from "iconsax-react-native";
 import { LikesResponse, PostProps, PostUser } from "@/types/post.types";
 import { generateURL } from "@/utils/image-utils.utils";
 import { useGetProfile } from "@/hooks/auth-hooks.hooks";
+import { router } from "expo-router";
 import {
   useLikePost,
   useUnlikePost,
   useGetAllLikes,
 } from "@/hooks/post-hooks.hooks";
+import { toast } from "@/components/lib/toast-manager";
 import {
   useAddFriend,
   useGetAllFriends,
@@ -30,11 +32,12 @@ const Post: React.FC<PostProps> = ({ post }) => {
   const [mainImageLoading, setMainImageLoading] = useState(true);
   const [profileImageLoading, setProfileImageLoading] = useState(true);
   const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
+  const [likeCount, setLikeCount] = useState(post?._count?.likes || 0);
   const [user, setUser] = useState<UserProfileR>(null!);
   const [isFriend, setIsFriend] = useState(false);
   const [currentImage, setCurrentImage] = useState(0);
   const [likesResponse, setLikesResponse] = useState<LikesResponse>(null!);
+  const [isLiking, setIsLiking] = useState(false);
   const handleScroll = (event: any) => {
     const index = Math.round(
       event.nativeEvent.contentOffset.x /
@@ -92,19 +95,47 @@ const Post: React.FC<PostProps> = ({ post }) => {
 
 
   const handleLike = async () => {
+    // Prevent multiple simultaneous requests
+    if (isLiking || !user?.id) return;
+
+    const wasLiked = liked;
+    const previousCount = likeCount;
+
     try {
-      if (!user?.id) return;
-      if (liked) {
-        const res = await useUnlikePost({ id: post.id });
+      setIsLiking(true);
+
+      // Optimistic update
+      if (wasLiked) {
         setLiked(false);
         setLikeCount((c) => Math.max(0, c - 1));
       } else {
-        const res = await useLikePost({ id: post.id });
         setLiked(true);
         setLikeCount((c) => c + 1);
       }
-    } catch (err) {
+
+      // Make API call
+      const res = wasLiked
+        ? await useUnlikePost({ id: post.id })
+        : await useLikePost({ id: post.id });
+
+      // Check if response is an error
+      if (res?.error || (typeof res === 'string' && res.includes('error'))) {
+        // Rollback optimistic update
+        setLiked(wasLiked);
+        setLikeCount(previousCount);
+        toast.error("Failed to update like. Please try again.");
+        return;
+      }
+
+      // Success - state already updated optimistically
+    } catch (err: any) {
+      // Rollback optimistic update on error
+      setLiked(wasLiked);
+      setLikeCount(previousCount);
       console.error("Error toggling like:", err);
+      toast.error("Unable to update like. Please check your connection.");
+    } finally {
+      setIsLiking(false);
     }
   };
 
@@ -205,39 +236,49 @@ const Post: React.FC<PostProps> = ({ post }) => {
           alignItems="center"
         >
           {/* Profile Info */}
-          <ThemedView
-            flexDirection="row"
-            alignItems="center"
-            gap={10}
-            marginBottom={5}
-          >
-            <Image
-              source={
-                profileImageLoading
-                  ? require("@/assets/user.png")
-                  : {
-                    uri: generateURL({
-                      url: post?.user?.profile_picture?.url,
-                    }),
-                  }
+          <TouchableOpacity
+            onPress={() => {
+              if (post?.user?.id) {
+                router.push(`/(friends)/view-friends?id=${post.user.id}`);
               }
-              style={{
-                width: 50,
-                height: 50,
-                borderRadius: 200,
-              }}
-              onLoadEnd={() => setProfileImageLoading(false)}
-              resizeMode="cover"
-            />
-            <ThemedView>
-              <ThemedText fontSize={15} weight="bold" color={"#fff"}>
-                {`${post?.user?.first_name} ${post?.user?.last_name}`}
-              </ThemedText>
-              <ThemedText weight="light" color={"#fff"}>
-                @{post?.user?.username}
-              </ThemedText>
+            }}
+            activeOpacity={0.7}
+          >
+            <ThemedView
+              flexDirection="row"
+              alignItems="center"
+              gap={10}
+              marginBottom={5}
+            >
+              <Image
+                source={
+                  profileImageLoading || !post?.user?.profile_picture?.url
+                    ? require("@/assets/user.png")
+                    : {
+                        uri: generateURL({
+                          url: post?.user?.profile_picture?.url,
+                        }),
+                      }
+                }
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: 200,
+                }}
+                onLoadEnd={() => setProfileImageLoading(false)}
+                onError={() => setProfileImageLoading(true)}
+                resizeMode="cover"
+              />
+              <ThemedView>
+                <ThemedText fontSize={15} weight="bold" color={"#fff"}>
+                  {`${post?.user?.first_name} ${post?.user?.last_name}`}
+                </ThemedText>
+                <ThemedText weight="light" color={"#fff"}>
+                  @{post?.user?.username}
+                </ThemedText>
+              </ThemedView>
             </ThemedView>
-          </ThemedView>
+          </TouchableOpacity>
 
           {/* Buttons */}
           <ThemedView flexDirection="row" alignItems="center" gap={10}>
@@ -271,7 +312,11 @@ const Post: React.FC<PostProps> = ({ post }) => {
               ))}
 
             {/* Like button */}
-            <TouchableOpacity onPress={handleLike}>
+            <TouchableOpacity 
+              onPress={handleLike}
+              disabled={isLiking}
+              activeOpacity={0.7}
+            >
               <ThemedView
                 borderColor={"#fff"}
                 borderWidth={0.5}
@@ -280,11 +325,12 @@ const Post: React.FC<PostProps> = ({ post }) => {
                 flexDirection="row"
                 alignItems="center"
                 gap={5}
+                opacity={isLiking ? 0.6 : 1}
               >
                 <Heart
                   size={18}
                   color={"#fff"}
-                  variant={liked ? "Bold" : "Outline"} // ✅ fix: use liked state directly
+                  variant={liked ? "Bold" : "Outline"}
                 />
                 <ThemedText color={"#fff"} fontSize={12}>
                   {likeCount}

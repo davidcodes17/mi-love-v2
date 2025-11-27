@@ -4,7 +4,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import globalStyles from "@/components/styles/global-styles";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
-import BackButton from "@/components/common/back-button";
 import InputField from "@/components/common/input-field";
 import { Lock, Lock1 } from "iconsax-react-native";
 import NativeButton from "@/components/ui/native-button";
@@ -34,7 +33,6 @@ const Step6 = ({
 }: Step6Props) => {
   return (
     <ThemedView>
-      <BackButton />
       <ThemedText marginTop={20} fontSize={30}>
         Security Setup
       </ThemedText>

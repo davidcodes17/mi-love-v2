@@ -55,10 +55,16 @@
     </dict>
     <key>NSCameraUsageDescription</key>
     <string>$(PRODUCT_NAME) requires camera access in order to capture and transmit video</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your location</string>
+    <key>NSLocationAlwaysUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your location</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>We need your location to show nearby services.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>$(PRODUCT_NAME) requires microphone access in order to capture and transmit audio</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your photos</string>
     <key>NSUserActivityTypes</key>
     <array>
       <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>

@@ -62,7 +62,7 @@ const ChatCompo: React.FC<ChatCompoProps> = ({ chat, currentUserId }) => {
           <Image
             source={
               imageError || !otherParticipant?.profile_picture?.url
-                ? require("../../assets/users.jpg")
+                ? require("@/assets/user.png")
                 : {
                   uri: generateURL({
                     url: otherParticipant.profile_picture.url,
@@ -70,6 +70,7 @@ const ChatCompo: React.FC<ChatCompoProps> = ({ chat, currentUserId }) => {
                 }
             }
             onError={() => setImageError(true)}
+            defaultSource={require("@/assets/user.png")}
             style={{
               width: 45,
               height: 45,

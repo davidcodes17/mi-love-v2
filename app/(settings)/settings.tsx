@@ -1,4 +1,11 @@
-import { SafeAreaView, StyleSheet, TouchableOpacity, View, Alert, Linking } from "react-native";
+import {
+  SafeAreaView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+  Alert,
+  Linking,
+} from "react-native";
 import React from "react";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import {
@@ -9,13 +16,19 @@ import {
   LogoutCurve,
   Trash,
   ShieldTick,
+  Call,
 } from "iconsax-react-native";
 import { COLORS } from "@/config/theme";
 import { Href, useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useUserStore } from "@/store/store";
+import { useUserProfileStore } from "@/hooks/auth-hooks.hooks";
+import BackButton from "@/components/common/back-button";
 
 const Settings = () => {
   const router = useRouter();
+  const { clearUser } = useUserStore();
+  const { clearProfile } = useUserProfileStore();
 
   const handleDeleteAccount = () => {
     Alert.alert(
@@ -36,30 +49,36 @@ const Settings = () => {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to logout?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Yes, Logout",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await AsyncStorage.clear();
-              // If you store token under a specific key, you can also do:
-              // await AsyncStorage.removeItem('token');
-              router.replace("/"); // Redirect to home/default screen
-            } catch (e) {
-              Alert.alert("Error", "Failed to logout. Please try again.");
-            }
-          },
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Yes, Logout",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            // Clear token
+            await AsyncStorage.removeItem("token");
+            // Clear user stores
+            clearUser();
+            clearProfile();
+            // Redirect to entry screen
+            router.replace("/");
+          } catch (e) {
+            Alert.alert("Error", "Failed to logout. Please try again.");
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const settingsLinks = [
+    // TEMPORARY: Test Call Screen - Remove after testing
+    {
+      label: "🧪 Test Call (Remove After Testing)",
+      icon: <Call size={22} color="#FF9800" variant="Bold" />,
+      onPress: () => router.push("/test-call" as Href),
+      isTest: true,
+    },
     {
       label: "Account Information",
       icon: <Setting2 size={22} color={COLORS.primary} variant="Bold" />,
@@ -84,7 +103,8 @@ const Settings = () => {
     {
       label: "Privacy and Policy",
       icon: <ShieldTick size={22} color={COLORS.primary} variant="Bold" />,
-      onPress: () => Linking.openURL("https://mi-love-gilt.vercel.app/privacy.html"),
+      onPress: () =>
+        Linking.openURL("https://mi-love-gilt.vercel.app/privacy.html"),
     },
   ];
 
@@ -92,7 +112,8 @@ const Settings = () => {
     <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
       <ThemedView padding={20}>
         {/* Redesigned Header */}
-        <ThemedView marginBottom={18}>
+        <ThemedView marginBottom={18} flexDirection="row" alignItems="center" gap={15}>
+          <BackButton />
           <ThemedText
             fontSize={26}
             weight="medium"
@@ -121,7 +142,16 @@ const Settings = () => {
             >
               <ThemedView flexDirection="row" alignItems="center" gap={15}>
                 {item.icon}
-                <ThemedText fontSize={17} color={item.isDestructive ? "#d00" : undefined}>
+                <ThemedText
+                  fontSize={17}
+                  color={
+                    item.isDestructive
+                      ? "#d00"
+                      : item.isTest
+                      ? "#FF9800"
+                      : undefined
+                  }
+                >
                   {item.label}
                 </ThemedText>
               </ThemedView>

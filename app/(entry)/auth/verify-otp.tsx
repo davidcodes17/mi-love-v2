@@ -6,7 +6,7 @@ import BackButton from "@/components/common/back-button";
 import NativeButton from "@/components/ui/native-button";
 import AppleOTPInput from "@/components/common/apple-otp-input";
 import { useRouter } from "expo-router";
-import toast from "@originaltimi/rn-toast";
+import { toast } from "@/components/lib/toast-manager";
 import { useVerifyOtp } from "@/hooks/auth-hooks.hooks";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -17,12 +17,7 @@ const VerifyOtp = () => {
 
   const handleVerify = async () => {
     if (!otp || otp.length !== 6 || !/^[0-9]{6}$/.test(otp)) {
-      toast({
-        title: "Please enter a valid 6-digit OTP.",
-        type: "error",
-        position: "top",
-        duration: 2000,
-      });
+      toast.error("Please enter a valid 6-digit OTP.");
       return;
     }
     try {
@@ -30,12 +25,7 @@ const VerifyOtp = () => {
       // You may want to get the email from navigation params or storage
       const email = await AsyncStorage.getItem("email");
       if (!email) {
-        toast({
-          title: "No email found. Please go back and enter your email.",
-          type: "error",
-          position: "top",
-          duration: 2000,
-        });
+        toast.error("No email found. Please go back and enter your email.");
         setLoading(false);
         return;
       }
@@ -45,29 +35,15 @@ const VerifyOtp = () => {
         type: "reset",
       });
       if (response?.token) {
-        toast({
-          title: "OTP Verified!",
-          type: "success",
-          duration: 2000,
-        });
+        toast.success("OTP Verified!");
         await AsyncStorage.setItem("token", response.token);
         await AsyncStorage.setItem("otp", otp);
         router.push("/auth/reset-password");
       } else {
-        toast({
-          title: response?.message || "Invalid OTP",
-          type: "error",
-          position: "top",
-          duration: 2000,
-        });
+        toast.error(response?.message || "Invalid OTP");
       }
     } catch (error: any) {
-      toast({
-        title: error?.message || "Verification failed",
-        type: "error",
-        position: "top",
-        duration: 2000,
-      });
+      toast.error(error?.message || "Verification failed");
     } finally {
       setLoading(false);
     }

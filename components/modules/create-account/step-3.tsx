@@ -1,6 +1,5 @@
 import React from "react";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
-import BackButton from "@/components/common/back-button";
 import InputField from "@/components/common/input-field";
 import NativeButton from "@/components/ui/native-button";
 import { Profile, TickCircle } from "iconsax-react-native";
@@ -31,7 +30,6 @@ const Step3 = ({
   return (
     <ThemedView>
       <ThemedView>
-        <BackButton />
         <ThemedText marginTop={20} fontSize={30}>
           Let's create a new account
         </ThemedText>

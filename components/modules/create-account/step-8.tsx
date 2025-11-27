@@ -1,14 +1,14 @@
 import React, { useState, useRef, useCallback, useMemo } from "react";
-import { ScrollView, StyleSheet, TouchableOpacity, TextInput } from "react-native";
+import { ScrollView, StyleSheet, TouchableOpacity, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import globalStyles from "@/components/styles/global-styles";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
-import BackButton from "@/components/common/back-button";
 import InputField from "@/components/common/input-field";
-import { Flag, Home, Lock, Lock1, SearchNormal } from "iconsax-react-native";
+import { Flag, Home, SearchNormal } from "iconsax-react-native";
 import NativeButton from "@/components/ui/native-button";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
+import PhoneInput from "react-native-phone-number-input";
 
 // List of countries
 const countries = [
@@ -88,7 +88,6 @@ const Step8 = ({
   return (
     <>
       <ThemedView>
-        <BackButton />
         <ThemedText marginTop={20} fontSize={30}>
           How do we reach you?
         </ThemedText>
@@ -133,17 +132,29 @@ const Step8 = ({
           </TouchableOpacity>
         </ThemedView>
 
-        <InputField
-          icon={<Flag color="#ddd" size={20} />}
-          placeholder="Phone number"
-          label="Phone Number"
-          value={values.phonenumber}
-          onChangeText={handleChange("phonenumber")}
-          onBlur={() => handleBlur("phonenumber")}
-        />
-        {touched.phonenumber && errors.phonenumber && (
-          <ThemedText color="red" marginTop={4}>{errors.phonenumber}</ThemedText>
-        )}
+        <ThemedView marginTop={15}>
+          <ThemedText marginBottom={6}>Phone Number</ThemedText>
+          <PhoneInput
+            defaultValue={values.phonenumber}
+            defaultCode="NG"
+            layout="first"
+            onChangeFormattedText={(text) =>
+              handleChange("phonenumber")(text)
+            }
+            containerStyle={styles.phoneContainer}
+            textContainerStyle={styles.phoneTextContainer}
+            codeTextStyle={{ color: "#000", fontSize: 16 }}
+            textInputStyle={{ color: "#000", fontSize: 16 }}
+            flagButtonStyle={styles.flagButton}
+            withDarkTheme={false}
+            withShadow={false}
+          />
+          {touched.phonenumber && errors.phonenumber && (
+            <ThemedText color="red" marginTop={4}>
+              {errors.phonenumber}
+            </ThemedText>
+          )}
+        </ThemedView>
 
         <ThemedView
           width={"40%"}
@@ -238,4 +249,19 @@ const Step8 = ({
 
 export default Step8;
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  phoneContainer: {
+    width: "100%",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    backgroundColor: "#F5F6FA",
+  },
+  phoneTextContainer: {
+    borderRadius: 14,
+    backgroundColor: "#F5F6FA",
+  },
+  flagButton: {
+    marginRight: 8,
+  },
+});

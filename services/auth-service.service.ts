@@ -23,7 +23,10 @@ export const notificationService = async ({ token }: { token: string }) => {
 };
 export const getProfile = async () => {
   try {
-    const response = await apiSecured.get("/profile/me");
+    // Skip toasts for profile fetch (silent operation)
+    const response = await apiSecured.get("/profile/me", {
+      skipToast: true,
+    });
     return response.data;
   } catch (error: any) {
     console.log(error);

@@ -1,51 +1,45 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Image,
   FlatList,
   TouchableOpacity,
-  Modal,
-  TextInput,
-  Pressable,
+  RefreshControl,
+  ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import {
-  PaymentLinkResponse,
   TransactionsResponse,
-  WalletResponse,
 } from "@/types/wallet.types";
-import BottomSheet from "@gorhom/bottom-sheet";
-import * as WebBrowser from "expo-web-browser";
 import {
   CardCoin,
   Refresh,
   ArrowDown2,
   ArrowUp2,
   Wallet1,
+  ArrowRight2,
+  EmptyWallet,
 } from "iconsax-react-native";
 import { useUserStore } from "@/store/store";
 import { generateURL } from "@/utils/image-utils.utils";
 import {
   useFetchTransactions,
-  useGeneratePaymentLink,
   useGetWallet,
 } from "@/hooks/wallet-hooks.hooks";
 import BackButton from "@/components/common/back-button";
-import InputField from "@/components/common/input-field";
-import NativeButton from "@/components/ui/native-button";
 
-import { ActivityIndicator } from "react-native";
+import { ActivityIndicator, StyleSheet } from "react-native";
 import { COLORS } from "@/config/theme";
+import { LinearGradient } from "expo-linear-gradient";
 
 const Wallet = () => {
-  const [amount, setAmount] = useState("");
   const [wallet, setWallet] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [fundModalVisible, setFundModalVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [loadingWallet, setLoadingWallet] = useState(false);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
-  const [loadingFund, setLoadingFund] = useState(false);
 
   const { user } = useUserStore();
 
@@ -73,177 +67,232 @@ const Wallet = () => {
     }
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([fetchWalletData(), fetchTransactions()]);
+    setRefreshing(false);
+  };
+
   useEffect(() => {
     fetchWalletData();
     fetchTransactions();
   }, []);
 
-  const handleFund = async () => {
-    const amt = parseInt(amount, 10);
-    if (!amt || amt <= 0) return;
-
-    try {
-      setLoadingFund(true);
-      const response: any = await useGeneratePaymentLink({
-        data: { amount: amt },
-      });
-      setLoadingFund(false);
-      if (response?.link) {
-        await WebBrowser.openBrowserAsync(response.link);
-        setFundModalVisible(false);
-        setAmount("");
-      }
-    } catch (err) {
-      setLoadingFund(false);
-      console.error("Fund wallet failed:", err);
-    }
-  };
+  const balance = Number(wallet?.data?.balance ?? 0);
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <ThemedView paddingHorizontal={20}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#f7f8fa" }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 30 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {/* Header */}
         <ThemedView
           flexDirection="row"
           justifyContent="space-between"
           alignItems="center"
-          marginVertical={10}
+          paddingHorizontal={20}
+          paddingTop={10}
+          marginBottom={20}
         >
           <BackButton />
+          <ThemedText fontSize={22} fontWeight="bold" flex={1} marginLeft={15}>
+            Wallet
+          </ThemedText>
           <Image
-            source={{
-              uri: generateURL({ url: user?.profile_picture?.url || "" }),
-            }}
-            style={{ width: 45, height: 45, borderRadius: 100 }}
+            source={
+              user?.profile_picture?.url
+                ? {
+                    uri: generateURL({ url: user.profile_picture.url }),
+                  }
+                : require("@/assets/user.png")
+            }
+            defaultSource={require("@/assets/user.png")}
+            onError={() => {}}
+            style={styles.profileImage}
           />
         </ThemedView>
 
-        {/* Balance Section */}
-        <ThemedView paddingTop={20}>
-          <ThemedText>Your Balance</ThemedText>
-          {loadingWallet ? (
-            <ActivityIndicator
-              size="small"
-              color={COLORS.primary}
-              style={{ marginVertical: 20 }}
-            />
-          ) : (
+        {/* Balance Card */}
+        <ThemedView paddingHorizontal={20} marginBottom={24}>
+          <LinearGradient
+            colors={[COLORS.primary, COLORS.primary + "DD"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.balanceCard}
+          >
             <ThemedView
               flexDirection="row"
-              alignItems="center"
               justifyContent="space-between"
+              alignItems="flex-start"
+              marginBottom={24}
             >
-              <ThemedText fontSize={50}>
-                {Number(wallet?.data?.balance ?? 0).toLocaleString()}{" "}
-                <ThemedText fontSize={12}>coins</ThemedText>
-              </ThemedText>
-
-              <ThemedView flexDirection="row" gap={10}>
-                <TouchableOpacity
-                  onPress={() => {
-                    fetchWalletData();
-                    fetchTransactions();
-                  }}
-                >
-                  <ThemedView flexDirection="row" justifyContent="center">
-                    <Refresh color="#000" size={25} />
-                  </ThemedView>
-                  <ThemedText fontSize={12} paddingTop={10}>
-                    Refresh
+              <ThemedView flex={1}>
+                <ThemedText fontSize={14} color="#FFFFFF" opacity={0.9} marginBottom={8}>
+                  Your Balance
+                </ThemedText>
+                {loadingWallet ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <ThemedText fontSize={42} fontWeight="bold" color="#FFFFFF">
+                    {balance.toLocaleString()}
+                    <ThemedText fontSize={16} color="#FFFFFF" opacity={0.8}>
+                      {" "}coins
+                    </ThemedText>
                   </ThemedText>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setFundModalVisible(true)}>
-                  <TextAndIcon
-                    icon={<CardCoin color="#000" size={25} />}
-                    text="Fund Wallet"
-                  />
-                </TouchableOpacity>
+                )}
               </ThemedView>
+              <ThemedView
+                width={60}
+                height={60}
+                borderRadius={30}
+                backgroundColor="rgba(255, 255, 255, 0.2)"
+                justifyContent="center"
+                alignItems="center"
+              >
+                <Wallet1 size={32} color="#FFFFFF" variant="Bold" />
+              </ThemedView>
+            </ThemedView>
+
+            {/* Action Buttons */}
+            <ThemedView flexDirection="row" gap={12}>
+              <TouchableOpacity
+                onPress={() => router.push("/(settings)/wallet/fund-wallet")}
+                style={styles.actionButton}
+              >
+                <CardCoin size={20} color={COLORS.primary} variant="Bold" />
+                <ThemedText fontSize={14} fontWeight="600" color={COLORS.primary} marginLeft={8}>
+                  Fund Wallet
+                </ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={onRefresh}
+                style={[styles.actionButton, styles.refreshButton]}
+                disabled={refreshing || loadingWallet}
+              >
+                <Refresh
+                  size={20}
+                  color={COLORS.primary}
+                  variant="Outline"
+                />
+              </TouchableOpacity>
+            </ThemedView>
+          </LinearGradient>
+        </ThemedView>
+
+        {/* Transactions Section */}
+        <ThemedView paddingHorizontal={20}>
+          <ThemedView
+            flexDirection="row"
+            justifyContent="space-between"
+            alignItems="center"
+            marginBottom={16}
+          >
+            <ThemedText fontSize={20} fontWeight="bold" color="#111">
+              Recent Transactions
+            </ThemedText>
+            {transactions.length > 0 && (
+              <TouchableOpacity>
+                <ThemedText fontSize={14} color={COLORS.primary} fontWeight="500">
+                  View All
+                </ThemedText>
+              </TouchableOpacity>
+            )}
+          </ThemedView>
+
+          {loadingTransactions ? (
+            <ThemedView
+              backgroundColor="#fff"
+              borderRadius={20}
+              padding={40}
+              alignItems="center"
+            >
+              <ActivityIndicator size="small" color={COLORS.primary} />
+              <ThemedText fontSize={14} color="#6B7280" marginTop={12}>
+                Loading transactions...
+              </ThemedText>
+            </ThemedView>
+          ) : transactions.length === 0 ? (
+            <ThemedView
+              backgroundColor="#fff"
+              borderRadius={20}
+              padding={40}
+              alignItems="center"
+              shadowColor="#000"
+              shadowOpacity={0.05}
+              shadowRadius={10}
+              elevation={2}
+            >
+              <ThemedView
+                width={80}
+                height={80}
+                borderRadius={40}
+                backgroundColor="#F3F4F6"
+                justifyContent="center"
+                alignItems="center"
+                marginBottom={16}
+              >
+                <EmptyWallet size={40} color="#9CA3AF" variant="Bold" />
+              </ThemedView>
+              <ThemedText fontSize={16} fontWeight="600" color="#111" marginBottom={8}>
+                No transactions yet
+              </ThemedText>
+              <ThemedText fontSize={14} color="#6B7280" textAlign="center" marginBottom={20}>
+                Your transaction history will appear here once you start using your wallet
+              </ThemedText>
+              <TouchableOpacity
+                onPress={() => router.push("/(settings)/wallet/fund-wallet")}
+                style={styles.emptyStateButton}
+              >
+                <ThemedText fontSize={14} fontWeight="600" color="#FFFFFF">
+                  Fund Wallet
+                </ThemedText>
+              </TouchableOpacity>
+            </ThemedView>
+          ) : (
+            <ThemedView
+              backgroundColor="#fff"
+              borderRadius={20}
+              padding={16}
+              shadowColor="#000"
+              shadowOpacity={0.05}
+              shadowRadius={10}
+              elevation={2}
+            >
+              <FlatList
+                data={transactions.slice(0, 5)} // Show only first 5
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => <TransactionCard item={item} />}
+                scrollEnabled={false}
+                ItemSeparatorComponent={() => <ThemedView height={12} />}
+                ListFooterComponent={
+                  transactions.length > 5 ? (
+                    <TouchableOpacity
+                      onPress={() => {
+                        // Could navigate to full transactions list
+                      }}
+                      style={styles.viewMoreButton}
+                    >
+                      <ThemedText fontSize={14} color={COLORS.primary} fontWeight="500">
+                        View More Transactions
+                      </ThemedText>
+                      <ArrowRight2 size={16} color={COLORS.primary} />
+                    </TouchableOpacity>
+                  ) : null
+                }
+              />
             </ThemedView>
           )}
         </ThemedView>
-      </ThemedView>
-
-      {/* Transactions */}
-      <ThemedView paddingHorizontal={20} marginTop={20} flex={1}>
-        <ThemedText fontSize={16} marginBottom={10} fontWeight="bold">
-          Recent Transactions
-        </ThemedText>
-
-        {loadingTransactions ? (
-          <ActivityIndicator
-            size="small"
-            color={COLORS.primary}
-            style={{ marginTop: 20 }}
-          />
-        ) : (
-          <FlatList
-            data={transactions}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <TransactionCard item={item} />}
-            style={{ backgroundColor: "#fff", borderRadius: 20 }}
-            ListEmptyComponent={
-              <ThemedText fontSize={12} color="gray">
-                No transactions yet
-              </ThemedText>
-            }
-          />
-        )}
-      </ThemedView>
-
-      {/* Fund Wallet Modal */}
-      <Modal
-        visible={fundModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setFundModalVisible(false)}
-      >
-        <ThemedView
-          flex={1}
-          justifyContent="center"
-          alignItems="center"
-          backgroundColor="rgba(0,0,0,0.4)"
-        >
-          <ThemedView
-            backgroundColor="#fff"
-            padding={20}
-            borderRadius={20}
-            width="80%"
-          >
-            <InputField
-              value={amount}
-              onChangeText={setAmount}
-              placeholder="Enter amount"
-              keyboardType="numeric"
-              icon={<Wallet1 color="#ddd" size={20} />}
-              label="Enter Amount"
-            />
-            <NativeButton
-              mode="fill"
-              text="Fund Wallet"
-              style={{ borderRadius: 20, marginTop: 10 }}
-              onPress={handleFund}
-              isLoading={loadingFund}
-            />
-            <Pressable
-              onPress={() => setFundModalVisible(false)}
-              style={{ marginTop: 10, alignItems: "center" }}
-            >
-              <ThemedText fontSize={14} color="#EF4444">
-                Cancel
-              </ThemedText>
-            </Pressable>
-          </ThemedView>
-        </ThemedView>
-      </Modal>
+      </ScrollView>
     </SafeAreaView>
   );
 };
 
-// TransactionCard & TextAndIcon remain same as your previous version
-
-// ✅ Transaction Card Component
-// ✅ Transaction Card Component - GenZ Modern
+// Enhanced Transaction Card Component
 const TransactionCard = ({
   item,
 }: {
@@ -251,106 +300,94 @@ const TransactionCard = ({
 }) => {
   const isCredit = item.type === "credit";
 
-  // status badge colors
   const statusColors: Record<typeof item.status, string> = {
-    success: "#10B981", // emerald green
-    pending: "#F59E0B", // amber
-    failed: "#EF4444", // coral red
-  };
-
-  // currency symbol mapping
-  const currencySymbol = (cur: string) => {
-    switch (cur) {
-      case "NGN":
-        return "₦";
-      case "USD":
-        return "$";
-      case "EUR":
-        return "€";
-      default:
-        return cur + " ";
-    }
+    success: "#10B981",
+    pending: "#F59E0B",
+    failed: "#EF4444",
   };
 
   return (
-    <TouchableOpacity activeOpacity={0.85}>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={() =>
+        router.push(`/(settings)/wallet/transaction-detail?id=${item.id}`)
+      }
+    >
       <ThemedView
         flexDirection="row"
         justifyContent="space-between"
         alignItems="center"
         padding={16}
-        marginBottom={14}
-        borderRadius={18}
-        backgroundColor="#fff"
-        shadowColor="#000"
-        shadowOpacity={0.07}
-        shadowRadius={6}
-        elevation={3}
+        borderRadius={16}
+        backgroundColor="#FAFBFC"
+        borderWidth={1}
+        borderColor="#F3F4F6"
       >
-        {/* Left side: Icon in a chip + Details */}
-        <ThemedView flexDirection="row" gap={14} alignItems="center">
+        {/* Left side: Icon + Details */}
+        <ThemedView flexDirection="row" gap={12} alignItems="center" flex={1}>
           <ThemedView
-            width={42}
-            height={42}
-            borderRadius={12}
+            width={48}
+            height={48}
+            borderRadius={14}
             justifyContent="center"
             alignItems="center"
             backgroundColor={isCredit ? "#ECFDF5" : "#FEF2F2"}
           >
             {isCredit ? (
-              <ArrowDown2 size={22} color="#10B981" />
+              <ArrowDown2 size={24} color="#10B981" variant="Bold" />
             ) : (
-              <ArrowUp2 size={22} color="#EF4444" />
+              <ArrowUp2 size={24} color="#EF4444" variant="Bold" />
             )}
           </ThemedView>
 
-          <ThemedView>
-            <ThemedText fontSize={15} fontWeight="600" color="#111">
+          <ThemedView flex={1}>
+            <ThemedText fontSize={15} fontWeight="600" color="#111" marginBottom={4}>
               {isCredit ? "Money In" : "Money Out"}
             </ThemedText>
-            <ThemedText fontSize={12} color="#6B7280">
-              {new Date(item.created_at).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })}{" "}
-              •{" "}
-              {new Date(item.created_at).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </ThemedText>
+            <ThemedView flexDirection="row" alignItems="center" gap={6}>
+              <ThemedText fontSize={12} color="#6B7280">
+                {new Date(item.created_at).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </ThemedText>
+              <ThemedText fontSize={12} color="#6B7280">
+                •
+              </ThemedText>
+              <ThemedText fontSize={12} color="#6B7280">
+                {new Date(item.created_at).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </ThemedText>
+            </ThemedView>
           </ThemedView>
         </ThemedView>
 
-        {/* Right side: Amount + Status pill */}
-        <ThemedView alignItems="flex-end" gap={6} flexShrink={0}>
+        {/* Right side: Amount + Status */}
+        <ThemedView alignItems="flex-end" gap={8}>
           <ThemedText
             fontSize={16}
             fontWeight="700"
             color={isCredit ? "#10B981" : "#EF4444"}
           >
             {isCredit ? "+" : "-"}
-            {/* {currencySymbol(item.currency)} */}
             {Number(item.amount).toLocaleString()}C
           </ThemedText>
 
           <ThemedView
             paddingHorizontal={10}
-            paddingVertical={5}
-            minWidth={80} // wider to fit uppercase text
-            borderRadius={20}
-            backgroundColor={statusColors[item.status] + "20"} // faded bg
-            justifyContent="center"
+            paddingVertical={4}
+            borderRadius={12}
+            backgroundColor={statusColors[item.status] + "15"}
+            minWidth={70}
             alignItems="center"
-            flexShrink={0} // prevent squeezing
           >
             <ThemedText
-              fontSize={11}
+              fontSize={10}
               fontWeight="600"
               color={statusColors[item.status]}
-              textTransform="uppercase" // fully uppercase
-              numberOfLines={1}
-              ellipsizeMode="tail"
+              textTransform="uppercase"
             >
               {item.status}
             </ThemedText>
@@ -361,13 +398,57 @@ const TransactionCard = ({
   );
 };
 
-const TextAndIcon = ({ text, icon }: { text: string; icon: any }) => (
-  <ThemedView justifyContent="center" alignItems="center">
-    {icon}
-    <ThemedText paddingTop={10} fontSize={12}>
-      {text}
-    </ThemedText>
-  </ThemedView>
-);
+const styles = StyleSheet.create({
+  profileImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: "#F3F4F6",
+  },
+  balanceCard: {
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  refreshButton: {
+    flex: 0,
+    minWidth: 56,
+    paddingHorizontal: 0,
+  },
+  emptyStateButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 16,
+  },
+  viewMoreButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 16,
+    marginTop: 8,
+  },
+});
 
 export default Wallet;

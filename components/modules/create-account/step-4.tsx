@@ -7,7 +7,6 @@ import {
   View,
 } from "react-native";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
-import BackButton from "@/components/common/back-button";
 import NativeButton from "@/components/ui/native-button";
 import { COLORS } from "@/config/theme";
 
@@ -93,7 +92,6 @@ const Step4 = ({
         contentContainerStyle={{ padding: 10, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
-        <BackButton />
         <ThemedText marginTop={20} fontSize={30}>
           Help us personalize your experience.
         </ThemedText>

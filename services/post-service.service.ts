@@ -32,20 +32,24 @@ export const createPost = async ({ data }: { data: CreatePost }) => {
 };
 export const unlikePost = async ({ id }: { id: string }) => {
   try {
-    const response = await apiSecured.post(`/posts/${id}/unlike`);
+    const response = await apiSecured.post(`/posts/${id}/unlike`, {}, {
+      skipErrorToast: true, // We handle errors in the component
+    });
     return response.data;
   } catch (error: any) {
-    console.log(error);
-    return error?.response?.data?.error;
+    console.error("Unlike post error:", error);
+    return { error: error?.response?.data?.error || error?.message || "Failed to unlike post" };
   }
 };
 export const likePost = async ({ id }: { id: string }) => {
   try {
-    const response = await apiSecured.post(`/posts/${id}/like`);
+    const response = await apiSecured.post(`/posts/${id}/like`, {}, {
+      skipErrorToast: true, // We handle errors in the component
+    });
     return response.data;
   } catch (error: any) {
-    console.log(error);
-    return error?.response?.data?.error;
+    console.error("Like post error:", error);
+    return { error: error?.response?.data?.error || error?.message || "Failed to like post" };
   }
 };
 export const getAllLike = async ({ id }: { id: string }) => {

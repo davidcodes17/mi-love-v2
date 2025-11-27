@@ -12,7 +12,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import globalStyles from "@/components/styles/global-styles";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
-import BackButton from "@/components/common/back-button";
 import InputField from "@/components/common/input-field";
 import { Calendar, Profile, Image as ImageIcon } from "iconsax-react-native";
 import NativeButton from "@/components/ui/native-button";
@@ -22,7 +21,7 @@ import * as ImagePicker from "expo-image-picker";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 import { COLORS } from "@/config/theme";
 import { useUploadService } from "@/hooks/auth-hooks.hooks";
-import toast from "@originaltimi/rn-toast";
+import { toast } from "@/components/lib/toast-manager";
 
 interface Step7Props {
   values: any;
@@ -111,11 +110,7 @@ const Step7 = ({
 
   const uploadImage = async () => {
     if (!localImage) {
-      toast({
-        title: "Please select an image first.",
-        duration: 2000,
-        type: "error",
-      });
+      toast.error("Please select an image first.");
       return;
     }
 
@@ -129,11 +124,7 @@ const Step7 = ({
     try {
       const response = await useUploadService({ file });
       console.log("Upload response:", response);
-      toast({
-        title: "Image uploaded successfully!",
-        duration: 2000,
-        type: "success",
-      });
+      toast.success("Image uploaded successfully!");
       // This ID
       console.log(response?.data[0]?.id, "SJSJ");
       handleChange("profileImage")(response?.data[0]?.id);
@@ -141,11 +132,7 @@ const Step7 = ({
     } catch (error) {
       setLoading(false);
       console.log("Upload error:", error);
-      toast({
-        title: "Image upload failed.",
-        duration: 2000,
-        type: "error",
-      });
+      toast.error("Image upload failed.");
     }
   };
 
@@ -162,104 +149,167 @@ const Step7 = ({
         // contentContainerStyle={{ paddingBottom: 20 }}
       >
         <ThemedView>
-          <BackButton />
-          <ThemedText marginTop={20} fontSize={30}>
-            We'd like to know you more
+          <ThemedText marginTop={20} fontSize={32} weight="bold">
+            Let's get to know you better! ✨
           </ThemedText>
-          <ThemedText marginTop={7}>Complete your profile below.</ThemedText>
+          <ThemedText marginTop={8} fontSize={15} color="#666">
+            Add your profile photo and personal details to complete your profile
+          </ThemedText>
 
           {/* Profile Image Upload */}
-          <ThemedView alignItems="center" marginTop={20} marginBottom={10}>
+          <ThemedView alignItems="center" marginTop={30} marginBottom={20}>
             <TouchableOpacity
               onPress={handleImagePresentModalPress}
+              activeOpacity={0.9}
               style={{ alignItems: "center", width: "100%" }}
             >
-              <Image
-                source={
-                  localImage
-                    ? { uri: localImage }
-                    : require("@/assets/user.png")
-                }
-                style={{
-                  width: "100%",
-                  height: 300,
-                  borderRadius: 10,
-                }}
-                resizeMode="cover"
-              />
+              <View style={{
+                width: 200,
+                height: 200,
+                borderRadius: 100,
+                borderWidth: 4,
+                borderColor: COLORS.primary + "30",
+                padding: 4,
+                backgroundColor: "#f8f9fa",
+                shadowColor: COLORS.primary,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.2,
+                shadowRadius: 12,
+                elevation: 8,
+              }}>
+                <Image
+                  source={
+                    localImage
+                      ? { uri: localImage }
+                      : require("@/assets/user.png")
+                  }
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    borderRadius: 100,
+                  }}
+                  resizeMode="cover"
+                />
+                <View style={{
+                  position: "absolute",
+                  bottom: 0,
+                  right: 0,
+                  width: 50,
+                  height: 50,
+                  borderRadius: 25,
+                  backgroundColor: COLORS.primary,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  borderWidth: 3,
+                  borderColor: "#fff",
+                }}>
+                  <ImageIcon size={24} color="#fff" variant="Bold" />
+                </View>
+              </View>
               <ThemedText
-                fontSize={14}
+                fontSize={16}
                 color={COLORS.primary}
-                weight="medium"
-                marginTop={8}
+                weight="600"
+                marginTop={16}
               >
-                {localImage ? "Change Photo" : "Upload Photo"}
+                {localImage ? "Change Photo" : "Tap to Add Photo"}
               </ThemedText>
+              {localImage && (
+                <NativeButton
+                  text={loading ? "Uploading..." : "Upload Photo"}
+                  onPress={uploadImage}
+                  isLoading={loading}
+                  style={{ marginTop: 12, paddingHorizontal: 30, borderRadius: 25 }}
+                  mode="fill"
+                />
+              )}
             </TouchableOpacity>
-            {/* Upload Button */}
-            <NativeButton
-              text="Upload"
-              onPress={uploadImage}
-              isLoading={loading}
-              style={{ marginTop: 10, width: 150, borderRadius: 80 }}
-              mode="outline"
-            />
           </ThemedView>
 
           {/* Gender Picker */}
-          <ThemedView marginTop={10}>
-            <ThemedText>Gender</ThemedText>
-            <TouchableOpacity onPress={handleGenderPresentModalPress}>
+          <ThemedView marginTop={20}>
+            <ThemedText fontSize={16} weight="600" marginBottom={8}>
+              Gender
+            </ThemedText>
+            <TouchableOpacity 
+              onPress={handleGenderPresentModalPress}
+              activeOpacity={0.7}
+            >
               <ThemedView
-                borderWidth={0.3}
-                borderColor={"#ddd"}
-                borderRadius={10}
-                marginTop={5}
-                padding={12}
+                borderWidth={2}
+                borderColor={values.gender ? COLORS.primary + "40" : "#e0e0e0"}
+                borderRadius={16}
+                padding={16}
                 flexDirection="row"
                 alignItems="center"
-                gap={10}
+                gap={12}
+                backgroundColor={values.gender ? COLORS.primary + "08" : "#f8f9fa"}
               >
-                <Profile color="#ddd" size={20} />
-                <ThemedText>
-                  {values.gender
-                    ? values.gender.charAt(0).toUpperCase() +
-                      values.gender.slice(1)
-                    : "Select Gender"}
-                </ThemedText>
+                <View style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: values.gender ? COLORS.primary + "20" : "#e0e0e0",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}>
+                  <Profile color={values.gender ? COLORS.primary : "#999"} size={22} variant="Bold" />
+                </View>
+                <ThemedView flex={1}>
+                  <ThemedText fontSize={15} weight={values.gender ? "600" : "400"} color={values.gender ? "#000" : "#999"}>
+                    {values.gender
+                      ? values.gender.charAt(0).toUpperCase() +
+                        values.gender.slice(1)
+                      : "Select your gender"}
+                  </ThemedText>
+                </ThemedView>
               </ThemedView>
             </TouchableOpacity>
             {touched.gender && errors.gender && (
-              <ThemedText color="red" marginTop={4}>
+              <ThemedText color="red" marginTop={6} fontSize={13}>
                 {errors.gender}
               </ThemedText>
             )}
           </ThemedView>
 
           {/* Date of Birth Picker */}
-          <ThemedView marginTop={10}>
-            <ThemedText>Date of Birth</ThemedText>
+          <ThemedView marginTop={16}>
+            <ThemedText fontSize={16} weight="600" marginBottom={8}>
+              Date of Birth
+            </ThemedText>
             <TouchableOpacity
               onPress={handleDatePresentModalPress}
-              style={{ marginTop: 5 }}
+              activeOpacity={0.7}
             >
               <ThemedView
-                borderWidth={0.3}
-                borderColor={"#ddd"}
-                borderRadius={10}
-                padding={12}
+                borderWidth={2}
+                borderColor={values.dob ? COLORS.primary + "40" : "#e0e0e0"}
+                borderRadius={16}
+                padding={16}
                 flexDirection="row"
                 alignItems="center"
-                gap={10}
+                gap={12}
+                backgroundColor={values.dob ? COLORS.primary + "08" : "#f8f9fa"}
               >
-                <Calendar color="#ddd" size={20} />
-                <ThemedText>
-                  {values.dob ? values.dob : "Select your date of birth"}
-                </ThemedText>
+                <View style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: values.dob ? COLORS.primary + "20" : "#e0e0e0",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}>
+                  <Calendar color={values.dob ? COLORS.primary : "#999"} size={22} variant="Bold" />
+                </View>
+                <ThemedView flex={1}>
+                  <ThemedText fontSize={15} weight={values.dob ? "600" : "400"} color={values.dob ? "#000" : "#999"}>
+                    {values.dob ? values.dob : "Select your date of birth"}
+                  </ThemedText>
+                </ThemedView>
               </ThemedView>
             </TouchableOpacity>
             {touched.dob && errors.dob && (
-              <ThemedText color="red" marginTop={4}>
+              <ThemedText color="red" marginTop={6} fontSize={13}>
                 {errors.dob}
               </ThemedText>
             )}

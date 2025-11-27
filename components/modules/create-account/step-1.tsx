@@ -4,7 +4,6 @@ import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import NativeButton from "@/components/ui/native-button";
 import InputField from "@/components/common/input-field";
 import { Sms } from "iconsax-react-native";
-import BackButton from "@/components/common/back-button";
 import { useSendOtp } from "@/hooks/auth-hooks.hooks";
 
 interface Step1Props {
@@ -44,7 +43,6 @@ const Step1 = ({
   };
   return (
     <ThemedView>
-      <BackButton />
       <ThemedText marginTop={20} fontSize={30}>
         What's your email address?
       </ThemedText>

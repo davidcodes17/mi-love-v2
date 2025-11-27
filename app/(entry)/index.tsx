@@ -1,10 +1,11 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Image,
   SafeAreaView,
   ScrollView,
   useColorScheme,
   View,
+  ActivityIndicator,
 } from "react-native";
 import Animated, {
   useSharedValue,
@@ -17,10 +18,16 @@ import globalStyles from "@/components/styles/global-styles";
 import NativeButton from "@/components/ui/native-button";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useGetProfile, useUserProfileStore } from "@/hooks/auth-hooks.hooks";
+import { useUserStore } from "@/store/store";
+import { COLORS } from "@/config/theme";
 
 const Onboarding = () => {
   const router = useRouter();
   const scheme = useColorScheme() || "dark";
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  const setProfile = useUserProfileStore((state) => state.setProfile);
+  const { setUser } = useUserStore();
 
   const logoOpacity = useSharedValue(0);
   const imageTranslateY = useSharedValue(100);
@@ -45,19 +52,67 @@ const Onboarding = () => {
   }));
 
   useEffect(() => {
-    const checkToken = async () => {
+    const checkAuth = async () => {
       try {
         const token = await AsyncStorage.getItem("token");
-        if (token) {
-          router.push("/auth/login");
+        
+        if (!token) {
+          // No token, show onboarding
+          setCheckingAuth(false);
+          return;
+        }
+
+        // Token exists, validate it by fetching profile
+        try {
+          const profileData = await useGetProfile();
+          
+          if (profileData?.data && !profileData?.error) {
+            // Token is valid, set user data and navigate to home
+            setProfile(profileData.data);
+            setUser(profileData.data);
+            router.replace("/home");
+            return;
+          } else {
+            // Token is invalid, clear it and show onboarding
+            await AsyncStorage.removeItem("token");
+            setCheckingAuth(false);
+            return;
+          }
+        } catch (profileError: any) {
+          // Profile fetch failed (token invalid or expired)
+          console.log("Token validation failed:", profileError);
+          
+          // Clear invalid token
+          await AsyncStorage.removeItem("token");
+          setCheckingAuth(false);
+          return;
         }
       } catch (err) {
-        console.error("Error checking token:", err);
+        console.error("Error checking authentication:", err);
+        setCheckingAuth(false);
       }
     };
 
-    checkToken();
+    checkAuth();
   }, []);
+
+  // Show loading screen while checking authentication
+  if (checkingAuth) {
+    return (
+      <SafeAreaView style={[globalStyles.wrapper, { flex: 1, justifyContent: "center", alignItems: "center" }]}>
+        <ThemedView alignItems="center" justifyContent="center">
+          <Image
+            source={require("@/assets/images/onboarding/icon.png")}
+            style={{ width: 80, height: 80, marginBottom: 20 }}
+          />
+          {/* <ActivityIndicator size="large" color={COLORS.primary} /> */}
+          <ThemedText marginTop={20} fontSize={16} color="#6B7280">
+            Loading...
+          </ThemedText>
+        </ThemedView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[globalStyles.wrapper, { flex: 1, paddingTop : 30 }]}>

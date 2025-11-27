@@ -19,6 +19,17 @@ export const fetchTranscationsWallet = async () => {
     return error?.response?.data?.error;
   }
 };
+export const fetchSingleTransaction = async ({ id }: { id: string }) => {
+  try {
+    const response = await apiSecured.get(`/wallet/transactions/${id}`, {
+      skipToast: true, // Don't show toast for GET requests
+    });
+    return response.data;
+  } catch (error: any) {
+    console.log(error);
+    return error?.response?.data?.error;
+  }
+};
 export const fetchAllGifts = async () => {
   try {
     const response = await apiSecured.get(`/wallet/gifts`);

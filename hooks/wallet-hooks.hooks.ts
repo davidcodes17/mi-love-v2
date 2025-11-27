@@ -1,6 +1,7 @@
 import {
   fetchAllGifts,
   fetchTranscationsWallet,
+  fetchSingleTransaction,
   generatePaymentLink,
   getWalletService,
   sendGift,
@@ -13,6 +14,10 @@ export const useGetWallet = async () => {
 };
 export const useFetchTransactions = async () => {
   const response = await fetchTranscationsWallet();
+  return response;
+};
+export const useFetchSingleTransaction = async ({ id }: { id: string }) => {
+  const response = await fetchSingleTransaction({ id });
   return response;
 };
 export const useGetAllGifts = async () => {

@@ -10,54 +10,108 @@ import { ChatMessage } from "@/types/chat.types";
 import { formatDistanceToNow } from "date-fns";
 import { useCall } from "@/context/call-provider";
 import { useUserStore } from "@/store/store";
+import { requestMicrophonePermission, requestCallPermissions } from "@/utils/permissions-utils.utils";
+import { toast } from "@/components/lib/toast-manager";
 
 export const HeaderChat = ({
   profileUrl,
   name,
   message,
+  recipientId,
 }: {
   name?: string;
   profileUrl: string;
   message: ChatMessage;
+  recipientId?: string;
 }) => {
   const [imageError, setImageError] = useState(false);
 
   const imageSource =
     imageError || !profileUrl
-      ? require("@/assets/users.jpg")
+      ? require("@/assets/user.png")
       : { uri: generateURL({ url: profileUrl }) };
 
   const theme = useTheme();
 
   const { client, createCall } = useCall();
   const { user } = useUserStore();
+  
   const handleVoiceCall = async () => {
     try {
       if (!client) {
         console.error("Call client not initialized");
-        Alert.alert("Error", "Call service not ready yet");
+        toast.error("Call service not ready yet");
         return;
       }
 
-      // Use the createCall method from our context
-      // For testing, we'll use the opposite user ID (if we're user1, call user2 and vice versa)
-      const recipientId = user?.username === "areegbedavid" ? "user2" : "user1";
-      console.log(`Attempting to call ${recipientId} from ${user?.username}`);
-      
-      // Show calling indicator
-      Alert.alert("Calling...", `Starting call with ${name || "user"}`);
-      
-      const call = await createCall(recipientId, "default");
+      if (!recipientId) {
+        toast.error("Recipient information not available");
+        return;
+      }
+
+      // Try to request microphone permission first
+      // If it fails, proceed anyway - WebRTC will handle it
+      try {
+        await requestMicrophonePermission(false); // Don't block if it fails
+      } catch (error) {
+        console.log("Permission request failed, proceeding anyway:", error);
+      }
+
+      console.log(`Attempting to start audio call with ${recipientId}`);
+
+      // Create audio call
+      const call = await createCall(recipientId, "audio");
 
       if (call) {
-        console.log("Voice call initiated with:", name);
+        console.log("Audio call initiated with:", name);
+        // Navigate to outgoing call screen first
+        router.push(`/outgoing-call?recipientId=${recipientId}&callType=audio&callId=${call.id}` as Href);
       } else {
         console.error("Failed to create call - call object is null");
-        Alert.alert("Call Failed", "Unable to connect call. Please try again later.");
+        toast.error("Unable to connect call. Please try again later.");
       }
     } catch (error) {
-      console.error("Failed to start voice call:", error);
-      Alert.alert("Call Error", "An error occurred while trying to make the call");
+      console.error("Failed to start audio call:", error);
+      toast.error("An error occurred while trying to make the call");
+    }
+  };
+  
+  const handleVideoCall = async () => {
+    try {
+      if (!client) {
+        toast.error("Video call service not available");
+        return;
+      }
+
+      if (!recipientId) {
+        toast.error("Recipient information not available");
+        return;
+      }
+
+      // Try to request camera and microphone permissions first
+      // If it fails, proceed anyway - WebRTC will handle it
+      try {
+        await requestCallPermissions(false); // Don't block if it fails
+      } catch (error) {
+        console.log("Permission request failed, proceeding anyway:", error);
+      }
+      
+      console.log(`Attempting to start video call with ${recipientId}`);
+      
+      // Create video call
+      const call = await createCall(recipientId, "video");
+
+      if (call) {
+        console.log("Video call initiated with:", name);
+        // Navigate to outgoing call screen first
+        router.push(`/outgoing-call?recipientId=${recipientId}&callType=video&callId=${call.id}` as Href);
+      } else {
+        console.error("Failed to create video call - call object is null");
+        toast.error("Could not start video call. Please try again.");
+      }
+    } catch (error) {
+      console.error("Failed to initiate video call:", error);
+      toast.error("Could not start video call. Please try again.");
     }
   };
   return (
@@ -110,40 +164,7 @@ export const HeaderChat = ({
         <TouchableOpacity onPress={handleVoiceCall}>
           <Call color={COLORS.primary} size={28} variant="Broken" />
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={async () => {
-            try {
-              if (!client) {
-                Alert.alert("Error", "Video call service not available");
-                return;
-              }
-              
-              // Generate a unique call ID
-              const callId = `video-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-              
-              // Show calling indicator
-              Alert.alert("Starting Video Call", `Connecting to ${name || "user"}`);
-              
-              // Get the opposite user ID for the call
-              const recipientId = user?.username === "areegbedavid" ? "user2" : "user1";
-              
-              // Create the call first
-              const call = client.call("default", callId);
-              await call.getOrCreate({
-                data: {
-                  members: [{ user_id: recipientId }],
-                  custom: { type: "video" }
-                }
-              });
-              
-              // Navigate to video call screen
-              router.push(`/video-call?channel=${callId}` as Href);
-            } catch (error) {
-              console.error("Failed to initiate video call:", error);
-              Alert.alert("Video Call Failed", "Could not start video call. Please try again.");
-            }
-          }}
-        >
+        <TouchableOpacity onPress={handleVideoCall}>
           <Video color={COLORS.primary} size={28} variant="Broken" />
         </TouchableOpacity>
       </ThemedView>

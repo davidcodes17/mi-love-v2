@@ -76,6 +76,8 @@ export default function ProfileScreen() {
                   ? { uri: generateURL({ url: profile.profile_picture.url }) }
                   : require("@/assets/user.png")
               }
+              defaultSource={require("@/assets/user.png")}
+              onError={() => {}}
               style={{
                 width: 100,
                 height: 100,

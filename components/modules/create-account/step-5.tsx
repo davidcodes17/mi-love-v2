@@ -1,12 +1,10 @@
 import React from "react";
-import { ScrollView, StyleSheet } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import globalStyles from "@/components/styles/global-styles";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
-import BackButton from "@/components/common/back-button";
-import InputField from "@/components/common/input-field";
-import { CallIncoming, Profile, Sms, TickCircle } from "iconsax-react-native";
 import NativeButton from "@/components/ui/native-button";
+import PhoneInput from "react-native-phone-number-input";
 
 interface Step5Props {
   values: any;
@@ -34,7 +32,6 @@ const Step5 = ({
   return (
     <ThemedView>
       <ThemedView>
-        <BackButton />
         <ThemedText marginTop={20} fontSize={30}>
           Setting up extra Security
         </ThemedText>
@@ -43,17 +40,29 @@ const Step5 = ({
         </ThemedText>
       </ThemedView>
 
-      <InputField
-        icon={<CallIncoming color="#ddd" size={20} />}
-        placeholder="+1 234 567 8900"
-        label="Emergency Contact"
-        value={values.emergencyContact}
-        onChangeText={handleChange("emergencyContact")}
-        onBlur={() => handleBlur("emergencyContact")}
-      />
-      {touched.emergencyContact && errors.emergencyContact && (
-        <ThemedText color="red" marginTop={4}>{errors.emergencyContact}</ThemedText>
-      )}
+      <ThemedView marginTop={20}>
+        <ThemedText marginBottom={6}>Emergency Contact</ThemedText>
+        <PhoneInput
+          defaultValue={values.emergencyContact}
+          defaultCode="NG"
+          layout="first"
+          onChangeFormattedText={(text) =>
+            handleChange("emergencyContact")(text)
+          }
+          containerStyle={styles.phoneContainer}
+          textContainerStyle={styles.phoneTextContainer}
+          codeTextStyle={{ color: "#000", fontSize: 16 }}
+          textInputStyle={{ color: "#000", fontSize: 16 }}
+          flagButtonStyle={styles.flagButton}
+          withDarkTheme={false}
+          withShadow={false}
+        />
+        {touched.emergencyContact && errors.emergencyContact && (
+          <ThemedText color="red" marginTop={4}>
+            {errors.emergencyContact}
+          </ThemedText>
+        )}
+      </ThemedView>
 
       <ThemedView
         width={"30%"}
@@ -74,4 +83,19 @@ const Step5 = ({
 
 export default Step5;
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  phoneContainer: {
+    width: "100%",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    backgroundColor: "#F5F6FA",
+  },
+  phoneTextContainer: {
+    borderRadius: 14,
+    backgroundColor: "#F5F6FA",
+  },
+  flagButton: {
+    marginRight: 8,
+  },
+});

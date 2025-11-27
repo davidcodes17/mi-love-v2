@@ -8,11 +8,13 @@ export const getAllFriends = async ({
   filterValue?: string;
 }) => {
   try {
+    // Skip success toast for GET requests (silent operation)
     const response = await apiSecured.get(`/friends`, {
       params: {
         filterBy,
         filterValue,
       },
+      skipSuccessToast: true, // Still show error toasts if needed
     });
     return response.data;
   } catch (error: any) {
@@ -44,7 +46,10 @@ export const unFriend = async ({ id }: { id: string }) => {
 };
 export const getSingleFriend = async ({ id }: { id: string }) => {
   try {
-    const response = await apiSecured.get(`/profile/${id}`);
+    // Skip success toast for GET requests (silent operation)
+    const response = await apiSecured.get(`/profile/${id}`, {
+      skipSuccessToast: true, // Still show error toasts if needed
+    });
     return response.data;
   } catch (error: any) {
     console.log(error);

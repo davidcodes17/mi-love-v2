@@ -5,18 +5,21 @@ import { COLORS } from "@/config/theme";
 import { Heart, More, MessageCircle, Share } from "iconsax-react-native";
 import { PostProps } from "@/types/post.types";
 import { generateURL } from "@/utils/image-utils.utils";
+import { router } from "expo-router";
 import {
   useLikePost,
   useUnlikePost,
   useGetAllLikes,
 } from "@/hooks/post-hooks.hooks";
 import { useUserProfileStore } from "@/hooks/auth-hooks.hooks";
+import { toast } from "@/components/lib/toast-manager";
 
 const TextPost: React.FC<PostProps> = ({ post }) => {
   const [expanded, setExpanded] = useState(false);
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(post?._count?.likes || 0);
   const [profileImageLoading, setProfileImageLoading] = useState(true);
+  const [isLiking, setIsLiking] = useState(false);
   const profile = useUserProfileStore((state) => state.profile);
 
   const shortText =
@@ -25,14 +28,47 @@ const TextPost: React.FC<PostProps> = ({ post }) => {
       : post?.content;
 
   const handleLike = async () => {
-    if (liked) {
-      setLikeCount((c) => c - 1);
-      await useUnlikePost({ id: post.id });
-      setLiked(false);
-    } else {
-      setLikeCount((c) => c + 1);
-      await useLikePost({ id: post.id });
-      setLiked(true);
+    // Prevent multiple simultaneous requests
+    if (isLiking) return;
+
+    const wasLiked = liked;
+    const previousCount = likeCount;
+
+    try {
+      setIsLiking(true);
+
+      // Optimistic update
+      if (wasLiked) {
+        setLiked(false);
+        setLikeCount((c) => Math.max(0, c - 1));
+      } else {
+        setLiked(true);
+        setLikeCount((c) => c + 1);
+      }
+
+      // Make API call
+      const res = wasLiked
+        ? await useUnlikePost({ id: post.id })
+        : await useLikePost({ id: post.id });
+
+      // Check if response is an error
+      if (res?.error || (typeof res === 'string' && res.includes('error'))) {
+        // Rollback optimistic update
+        setLiked(wasLiked);
+        setLikeCount(previousCount);
+        toast.error("Failed to update like. Please try again.");
+        return;
+      }
+
+      // Success - state already updated optimistically
+    } catch (err: any) {
+      // Rollback optimistic update on error
+      setLiked(wasLiked);
+      setLikeCount(previousCount);
+      console.error("Error toggling like:", err);
+      toast.error("Unable to update like. Please check your connection.");
+    } finally {
+      setIsLiking(false);
     }
   };
 
@@ -68,45 +104,60 @@ const TextPost: React.FC<PostProps> = ({ post }) => {
         alignItems="center"
         marginBottom={12}
       >
-        <ThemedView flexDirection="row" alignItems="center" gap={12}>
-          <ThemedView
-            width={48}
-            height={48}
-            borderRadius={24}
-            backgroundColor="#f0f0f0"
-            justifyContent="center"
-            alignItems="center"
-            overflow="hidden"
-          >
-            {post?.user?.profile_picture?.url ? (
-              <Image
-                source={{
-                  uri: generateURL({ url: post.user.profile_picture.url }),
-                }}
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 24,
-                }}
-                onLoadEnd={() => setProfileImageLoading(false)}
-              />
-            ) : (
-              <ThemedText fontSize={20} weight="bold" color={COLORS.primary}>
-                {post?.user?.first_name?.[0]}
-                {post?.user?.last_name?.[0]}
-              </ThemedText>
-            )}
-          </ThemedView>
+        <TouchableOpacity
+          onPress={() => {
+            if (post?.user?.id) {
+              router.push(`/(friends)/view-friends?id=${post.user.id}`);
+            }
+          }}
+          activeOpacity={0.7}
+        >
+          <ThemedView flexDirection="row" alignItems="center" gap={12}>
+            <ThemedView
+              width={48}
+              height={48}
+              borderRadius={24}
+              backgroundColor="#f0f0f0"
+              justifyContent="center"
+              alignItems="center"
+              overflow="hidden"
+            >
+              {post?.user?.profile_picture?.url ? (
+                <Image
+                  source={{
+                    uri: generateURL({ url: post.user.profile_picture.url }),
+                  }}
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 24,
+                  }}
+                  onLoadEnd={() => setProfileImageLoading(false)}
+                  onError={() => setProfileImageLoading(true)}
+                  defaultSource={require("@/assets/user.png")}
+                />
+              ) : (
+                <Image
+                  source={require("@/assets/user.png")}
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 24,
+                  }}
+                />
+              )}
+            </ThemedView>
 
-          <ThemedView>
-            <ThemedText fontSize={16} weight="bold" color="#1a1a1a">
-              {`${post?.user?.first_name} ${post?.user?.last_name}`}
-            </ThemedText>
-            <ThemedText fontSize={12} color="#666" marginTop={2}>
-              @{post?.user?.username} • {formatDate(post?.created_at)}
-            </ThemedText>
+            <ThemedView>
+              <ThemedText fontSize={16} weight="bold" color="#1a1a1a">
+                {`${post?.user?.first_name} ${post?.user?.last_name}`}
+              </ThemedText>
+              <ThemedText fontSize={12} color="#666" marginTop={2}>
+                @{post?.user?.username} • {formatDate(post?.created_at)}
+              </ThemedText>
+            </ThemedView>
           </ThemedView>
-        </ThemedView>
+        </TouchableOpacity>
 
         {/* <TouchableOpacity>
           <More size={20} color="#666" />
@@ -142,8 +193,17 @@ const TextPost: React.FC<PostProps> = ({ post }) => {
         borderTopColor="#f0f0f0"
       >
         <ThemedView flexDirection="row" alignItems="center" gap={20}>
-          <TouchableOpacity onPress={handleLike}>
-            <ThemedView flexDirection="row" alignItems="center" gap={6}>
+          <TouchableOpacity 
+            onPress={handleLike}
+            disabled={isLiking}
+            activeOpacity={0.7}
+          >
+            <ThemedView 
+              flexDirection="row" 
+              alignItems="center" 
+              gap={6}
+              opacity={isLiking ? 0.6 : 1}
+            >
               <Heart
                 size={20}
                 color={liked ? COLORS.primary : "#666"}

@@ -11,7 +11,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import globalStyles from "@/components/styles/global-styles";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
-import BackButton from "@/components/common/back-button";
 import { Profile } from "iconsax-react-native";
 import NativeButton from "@/components/ui/native-button";
 import { UserProfile } from "@/types/auth.types";
@@ -21,10 +20,11 @@ import {
   useNotificationService,
   useSendOtp,
 } from "@/hooks/auth-hooks.hooks";
-import toast from "@originaltimi/rn-toast";
+import { toast } from "@/components/lib/toast-manager";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
+import { registerForPushNotificationsAsync } from "@/utils/fcm-token.utils";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -70,12 +70,11 @@ const Step9 = ({
   >(undefined);
 
   useEffect(() => {
-    registerForPushNotificationsAsync().then(
-      (token) =>
-        token &&
-        setExpoPushToken(token) &&
-        useNotificationService({ token: expoPushToken })
-    );
+    registerForPushNotificationsAsync().then((token) => {
+      if (token) {
+        setExpoPushToken(token);
+      }
+    });
 
     if (Platform.OS === "android") {
       Notifications.getNotificationChannelsAsync().then((value) =>
@@ -106,10 +105,7 @@ const Step9 = ({
       // console.log(token,"TKN")
       if (!token) {
         setLoading(false);
-        toast({
-          title: "No Token Found",
-          type: "error",
-        });
+        toast.error("No Token Found");
         return;
       }
       const data: UserProfile = {
@@ -137,31 +133,51 @@ const Step9 = ({
       console.log(response);
       if (response?.access_token) {
         setLoading(false);
-        toast({
-          title: "Account Creation Successfull",
-          duration: 4000,
-          position: "bottom",
+        toast.show({
           type: "success",
+          title: "Account Creation Successfull",
+          position: "bottom",
+          visibilityTime: 4000,
         });
         await AsyncStorage.setItem("token", response?.access_token);
+        
+        // Send FCM token after account creation
+        if (expoPushToken) {
+          try {
+            await useNotificationService({ token: expoPushToken });
+            console.log("✅ FCM token sent after account creation");
+          } catch (fcmError) {
+            console.error("Failed to send FCM token:", fcmError);
+            // Don't block account creation if FCM fails
+          }
+        } else {
+          // If token not ready yet, try to get it and send
+          registerForPushNotificationsAsync().then(async (token) => {
+            if (token) {
+              try {
+                await useNotificationService({ token });
+                console.log("✅ FCM token sent after account creation (delayed)");
+              } catch (fcmError) {
+                console.error("Failed to send FCM token (delayed):", fcmError);
+              }
+            }
+          });
+        }
+        
         onNext();
       } else {
         setLoading(false);
-        toast({
+        toast.show({
+          type: "error",
           title: response?.message || "Account Creation Failed",
-          duration: 4000,
           position: "bottom",
-          type: "success",
+          visibilityTime: 4000,
         });
       }
     } catch (error: any) {
       setLoading(false);
       console.log(error);
-      toast({
-        title: "Check your Internet Connection",
-        duration: 4000,
-        type: "error",
-      });
+      toast.error("Check your Internet Connection");
     }
   };
 
@@ -175,7 +191,6 @@ const Step9 = ({
       }}
     >
       <ThemedView padding={10}>
-        <BackButton />
 
         <ThemedText marginTop={20} fontSize={30} weight="bold">
           Tell Us More About Yourself
@@ -246,53 +261,3 @@ const Step9 = ({
 export default Step9;
 
 const styles = StyleSheet.create({});
-
-async function registerForPushNotificationsAsync() {
-  let token;
-
-  if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync("myNotificationChannel", {
-      name: "A channel is needed for the permissions prompt to appear",
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: "#FF231F7C",
-    });
-  }
-
-  if (Device.isDevice) {
-    const { status: existingStatus } =
-      await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== "granted") {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    if (finalStatus !== "granted") {
-      alert("Failed to get push token for push notification!");
-      return;
-    }
-    // Learn more about projectId:
-    // https://docs.expo.dev/push-notifications/push-notifications-setup/#configure-projectid
-    // EAS projectId is used here.
-    try {
-      const projectId =
-        Constants?.expoConfig?.extra?.eas?.projectId ??
-        Constants?.easConfig?.projectId;
-      if (!projectId) {
-        throw new Error("Project ID not found");
-      }
-      token = (
-        await Notifications.getExpoPushTokenAsync({
-          projectId,
-        })
-      ).data;
-      console.log(token);
-    } catch (e) {
-      token = `${e}`;
-    }
-  } else {
-    alert("Must use physical device for Push Notifications");
-  }
-
-  return token;
-}

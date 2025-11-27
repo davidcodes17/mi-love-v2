@@ -1,48 +1,59 @@
 import globalStyles from "@/components/styles/global-styles";
 import NativeButton from "@/components/ui/native-button";
-import NativeText from "@/components/ui/native-text";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import { COLORS } from "@/config/theme";
-import { AddSquare } from "iconsax-react-native";
+import {
+  AddSquare,
+  Gallery,
+  CloseCircle,
+  Image as ImageIcon,
+} from "iconsax-react-native";
 import {
   ActivityIndicator,
   Image,
   ScrollView,
   TouchableOpacity,
+  TextInput,
+  View,
+  Dimensions,
 } from "react-native";
-import { TextInput } from "react-native-gesture-handler";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
-import { useEffect, useState } from "react";
-import { useGetProfile, useUploadService } from "@/hooks/auth-hooks.hooks";
+import { useState } from "react";
+import { useUploadService } from "@/hooks/auth-hooks.hooks";
 import { useCreatePost } from "@/hooks/post-hooks.hooks";
-import toast from "@originaltimi/rn-toast";
-import { UserProfileR } from "@/types/auth.types";
+import { toast } from "@/components/lib/toast-manager";
 import { generateURL } from "@/utils/image-utils.utils";
 import { router } from "expo-router";
 import { useUserStore } from "@/store/store";
+import BackButton from "@/components/common/back-button";
+
+const { width } = Dimensions.get("window");
+const IMAGE_SIZE = (width - 60) / 3; // 3 images per row with padding
 
 export default function Page() {
   const [content, setContent] = useState("");
-  const [images, setImages] = useState<string[]>([]); // local URIs
-  const [fileIds, setFileIds] = useState<string[]>([]); // uploaded file IDs
+  const [images, setImages] = useState<string[]>([]);
+  const [fileIds, setFileIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const { user } = useUserStore();
+  const maxContentLength = 500;
+  const remainingChars = maxContentLength - content.length;
 
   const pickImage = async () => {
     const permissionResult =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permissionResult.granted) {
-      toast({
-        title: "Permission to access gallery is required!",
-        type: "error",
-      });
+      toast.error("Permission to access gallery is required!");
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: true,
       allowsEditing: false,
-      quality: 0.7,
+      quality: 0.8,
     });
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const uris = result.assets.map((a) => a.uri);
@@ -50,8 +61,16 @@ export default function Page() {
     }
   };
 
+  const removeImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+    // Also remove corresponding fileId if exists
+    if (fileIds[index]) {
+      setFileIds((prev) => prev.filter((_, i) => i !== index));
+    }
+  };
+
   const uploadImages = async () => {
-    setLoading(true);
+    setUploading(true);
     try {
       const ids: string[] = [];
       for (const uri of images) {
@@ -68,48 +87,35 @@ export default function Page() {
       setFileIds(ids);
       return ids;
     } catch (e) {
-      toast({ title: "Image upload failed.", type: "error" });
+      toast.error("Image upload failed.");
       return [];
     } finally {
-      setLoading(false);
+      setUploading(false);
     }
   };
 
   const handlePost = async () => {
     if (!content.trim()) {
-      toast({
-        title:
-          "Post content cannot be empty. Please write something before posting.",
-        type: "error",
-      });
+      toast.error(
+        "Post content cannot be empty. Please write something before posting."
+      );
       return;
     }
 
-    // if (images.length === 0) {
-    //   toast({
-    //     title:
-    //       "No images selected. Please add at least one image to your post.",
-    //     type: "error",
-    //   });
-    //   return;
-    // }
+    if (content.length > maxContentLength) {
+      toast.error(`Content exceeds ${maxContentLength} characters.`);
+      return;
+    }
 
     setLoading(true);
     let ids = fileIds;
 
     try {
       if (images.length && fileIds.length !== images.length) {
-        toast({
-          title: "Uploading Post...",
-          type: "info",
-        });
+        setUploading(true);
         ids = await uploadImages();
+        setUploading(false);
       }
-
-      toast({
-        title: "Creating post... Please wait while we publish your post.",
-        type: "info",
-      });
 
       const response = await useCreatePost({
         data: {
@@ -119,19 +125,10 @@ export default function Page() {
         },
       });
 
-      console.log(response, "RESPONSEEE................");
-
       if (response?.data?.id) {
-        toast({
-          title: `Post created successfully! 🎉 Your post "${content.slice(
-            0,
-            50
-          )}${content.length > 50 ? "..." : ""}" has been published with ${
-            images.length
-          } image${images.length > 1 ? "s" : ""}.`,
-          type: "success",
-          duration: 4000,
-        });
+        toast.success(
+          `Post created successfully! 🎉 Your post has been published.`
+        );
 
         // Reset form
         setContent("");
@@ -141,127 +138,258 @@ export default function Page() {
         // Redirect to home page after a short delay
         setTimeout(() => {
           router.push("/(home)/home");
-        }, 1500);
+        }, 1000);
       } else {
-        toast({
-          title: `Failed to create post: ${
+        toast.error(
+          `Failed to create post: ${
             response?.message || "Something went wrong. Please try again."
-          }`,
-          type: "error",
-          duration: 4000,
-        });
+          }`
+        );
       }
     } catch (e) {
-      toast({
-        title:
-          "Post creation failed: Network error or server issue. Please check your connection and try again.",
-        type: "error",
-        duration: 4000,
-      });
+      toast.error(
+        "Post creation failed: Network error or server issue. Please check your connection and try again."
+      );
     } finally {
       setLoading(false);
+      setUploading(false);
     }
   };
 
-  const { user, updateUser, clearUser } = useUserStore();
-  console.log(user,"USER")
   return (
-    <SafeAreaView style={globalStyles.wrapper}>
-      <ScrollView>
-        <ThemedView padding={20}>
-          <ThemedText textAlign="center" fontSize={20} weight="medium">
-            Create Post
-          </ThemedText>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+      {/* Header */}
+      <ThemedView
+        flexDirection="row"
+        alignItems="center"
+        justifyContent="space-between"
+        padding={20}
+        paddingBottom={10}
+        borderBottomWidth={1}
+        borderBottomColor="#f0f0f0"
+      >
+        <ThemedText weight="bold" fontSize={18}>
+          Create Post
+        </ThemedText>
+        <TouchableOpacity
+          onPress={handlePost}
+          disabled={loading || uploading || !content.trim()}
+          style={{
+            opacity: loading || uploading || !content.trim() ? 0.5 : 1,
+          }}
+        >
+          <ThemedView
+            backgroundColor={COLORS.primary}
+            paddingHorizontal={20}
+            paddingVertical={8}
+            borderRadius={20}
+          >
+            {loading || uploading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <ThemedText color="#fff" weight="bold" fontSize={14}>
+                Post
+              </ThemedText>
+            )}
+          </ThemedView>
+        </TouchableOpacity>
+      </ThemedView>
 
-          <ThemedView marginTop={20}>
-            <ThemedView flexDirection="row" justifyContent="space-between">
-              <ThemedView flexDirection="row" gap={10} alignItems="center">
-                {user ? (
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 20 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* User Info */}
+        <ThemedView
+          flexDirection="row"
+          alignItems="center"
+          gap={12}
+          marginBottom={20}
+        >
+          <Image
+            source={
+              user?.profile_picture?.url
+                ? {
+                    uri: generateURL({ url: user.profile_picture.url }),
+                  }
+                : require("@/assets/user.png")
+            }
+            defaultSource={require("@/assets/user.png")}
+            style={{
+              width: 50,
+              height: 50,
+              borderRadius: 25,
+              borderWidth: 2,
+              borderColor: COLORS.primary,
+            }}
+            onError={() => {}}
+          />
+          <ThemedView flex={1}>
+            <ThemedText weight="bold" fontSize={16}>
+              {user?.first_name} {user?.last_name}
+            </ThemedText>
+            <ThemedText fontSize={14} color="#666">
+              @{user?.username}
+            </ThemedText>
+          </ThemedView>
+        </ThemedView>
+
+        {/* Text Input Area */}
+        <ThemedView
+          backgroundColor="#f9f9f9"
+          borderRadius={16}
+          padding={16}
+          marginBottom={20}
+          minHeight={200}
+        >
+          <TextInput
+            multiline
+            placeholder={`What's on your mind, ${user?.first_name || "there"}?`}
+            placeholderTextColor="#999"
+            style={{
+              fontFamily: "Quicksand_500Medium",
+              fontSize: 16,
+              lineHeight: 24,
+              color: "#1a1a1a",
+              minHeight: 180,
+              textAlignVertical: "top",
+            }}
+            value={content}
+            onChangeText={setContent}
+            maxLength={maxContentLength}
+          />
+          <ThemedView
+            flexDirection="row"
+            justifyContent="flex-end"
+            marginTop={10}
+          >
+            <ThemedText
+              fontSize={12}
+              color={remainingChars < 50 ? "#ef4444" : "#999"}
+            >
+              {remainingChars} characters remaining
+            </ThemedText>
+          </ThemedView>
+        </ThemedView>
+
+        {/* Images Section */}
+        {images.length > 0 && (
+          <ThemedView marginBottom={20}>
+            <ThemedText weight="bold" fontSize={16} marginBottom={12}>
+              Selected Images ({images.length})
+            </ThemedText>
+            <View
+              style={{
+                flexDirection: "row",
+                flexWrap: "wrap",
+                gap: 10,
+              }}
+            >
+              {images.map((uri, index) => (
+                <View key={`${uri}-${index}`} style={{ position: "relative" }}>
                   <Image
-                    source={{
-                      uri: generateURL({ url: user?.profile_picture?.url }),
-                    }}
+                    source={{ uri }}
                     style={{
-                      width: 45,
-                      height: 45,
-                      borderRadius: 100,
+                      width: IMAGE_SIZE,
+                      height: IMAGE_SIZE,
+                      borderRadius: 12,
+                      backgroundColor: "#f0f0f0",
                     }}
+                    resizeMode="cover"
                   />
-                ) : (
-                  <ActivityIndicator size={"small"} color={COLORS.primary} />
-                )}
-                <ThemedView>
-                  <ThemedText weight="bold">
-                    {user?.username || "..."}
-                  </ThemedText>
-                  <ThemedText>{`${user?.first_name || "..."} ${
-                    user?.last_name || "..."
-                  }`}</ThemedText>
-                </ThemedView>
-              </ThemedView>
-              <NativeButton
-                mode="fill"
-                text={loading ? "Posting..." : "Post"}
-                style={{
-                  paddingVertical: 2,
-                  borderRadius: 200,
-                  paddingHorizontal: 30,
-                }}
-                onPress={handlePost}
-                isLoading={loading}
-              />
-            </ThemedView>
+                  <TouchableOpacity
+                    onPress={() => removeImage(index)}
+                    style={{
+                      position: "absolute",
+                      top: -8,
+                      right: -8,
+                      backgroundColor: "#fff",
+                      borderRadius: 15,
+                      padding: 2,
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.25,
+                      shadowRadius: 3.84,
+                      elevation: 5,
+                    }}
+                  >
+                    <CloseCircle size={24} color="#ef4444" variant="Bold" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </ThemedView>
+        )}
 
-            <ThemedView marginTop={20}>
-              <TextInput
-                multiline={true}
-                numberOfLines={3}
-                placeholder={`Whats on your mind ${user?.username}?`}
-                style={{
-                  fontFamily: "Quicksand_500Medium",
-                  fontSize: 20,
-                  padding: 10,
-                  height: 200,
-                }}
-                scrollEnabled
-                value={content}
-                onChangeText={setContent}
-              />
-            </ThemedView>
-
-            <ThemedView flexDirection="row" gap={10} alignItems="center">
-              <ThemedView>
-                <ScrollView horizontal>
-                  {images.map((uri, idx) => (
-                    <Image
-                      key={uri + idx}
-                      source={{ uri }}
-                      style={{
-                        width: 100,
-                        height: 100,
-                        borderRadius: 20,
-                        marginRight: 20,
-                      }}
-                    />
-                  ))}
-                </ScrollView>
+        {/* Add Image Button */}
+        <TouchableOpacity
+          onPress={pickImage}
+          activeOpacity={0.7}
+          disabled={uploading}
+        >
+          <ThemedView
+            backgroundColor="#f9f9f9"
+            borderRadius={16}
+            padding={20}
+            borderWidth={2}
+            borderColor={COLORS.primary}
+            borderStyle="dashed"
+            alignItems="center"
+            justifyContent="center"
+            minHeight={120}
+            opacity={uploading ? 0.6 : 1}
+          >
+            {uploading ? (
+              <ThemedView alignItems="center">
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <ThemedText marginTop={10} color="#666" fontSize={14}>
+                  Uploading images...
+                </ThemedText>
               </ThemedView>
-              <TouchableOpacity onPress={pickImage} activeOpacity={0.7}>
+            ) : (
+              <ThemedView alignItems="center">
                 <ThemedView
-                  width={100}
-                  height={100}
-                  borderWidth={1.4}
-                  borderColor={COLORS.primary}
-                  borderRadius={20}
-                  marginTop={10}
+                  backgroundColor={COLORS.primary}
+                  width={60}
+                  height={60}
+                  borderRadius={30}
                   justifyContent="center"
-                  flexDirection="row"
-                  paddingTop={30}
+                  alignItems="center"
+                  marginBottom={12}
                 >
-                  <AddSquare size={30} color={COLORS.primary} />
+                  <Gallery size={28} color="#fff" variant="Bold" />
                 </ThemedView>
-              </TouchableOpacity>
-            </ThemedView>
+                <ThemedText weight="bold" fontSize={16} color={COLORS.primary}>
+                  Add Photos
+                </ThemedText>
+                <ThemedText fontSize={12} color="#666" marginTop={4}>
+                  Tap to select from gallery
+                </ThemedText>
+              </ThemedView>
+            )}
+          </ThemedView>
+        </TouchableOpacity>
+
+        {/* Info Card */}
+        <ThemedView
+          backgroundColor="#EFF6FF"
+          borderRadius={12}
+          padding={16}
+          marginTop={20}
+          flexDirection="row"
+          alignItems="center"
+          gap={12}
+        >
+          <ImageIcon size={24} color={COLORS.primary} variant="Bold" />
+          <ThemedView flex={1}>
+            <ThemedText fontSize={13} color="#1e40af" weight="medium">
+              Tips for a great post
+            </ThemedText>
+            <ThemedText fontSize={12} color="#3b82f6" marginTop={4}>
+              Share your thoughts, experiences, or moments. You can add up to 9
+              images to make your post more engaging!
+            </ThemedText>
           </ThemedView>
         </ThemedView>
       </ScrollView>

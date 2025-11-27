@@ -8,7 +8,7 @@ import { Sms } from "iconsax-react-native";
 import NativeButton from "@/components/ui/native-button";
 import { useRouter } from "expo-router";
 import { useSendOtp } from "@/hooks/auth-hooks.hooks";
-import toast from "@originaltimi/rn-toast";
+import { toast } from "@/components/lib/toast-manager";
 import { useFormik } from "formik";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -40,20 +40,12 @@ const ForgotPassword = () => {
           response?.status === "success" ||
           response?.message?.toLowerCase().includes("sent")
         ) {
-          toast({
-            title: "Verification code sent!",
-            duration: 2000,
-            type: "success",
-          });
+          toast.success("Verification code sent!");
           const email = await AsyncStorage.setItem("email", values.email);
           // Navigate to the next page (e.g., verify-otp)
           router.push("/(entry)/auth/verify-otp");
         } else {
-          toast({
-            title: response?.message || "Failed to send verification code.",
-            duration: 2000,
-            type: "error",
-          });
+          toast.error(response?.message || "Failed to send verification code.");
         }
       } finally {
         setLoading(false);

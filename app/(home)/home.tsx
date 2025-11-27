@@ -12,6 +12,7 @@ import React, { useState, useCallback, useRef } from "react";
 import { router } from "expo-router";
 import { useGetProfile, useUserProfileStore } from "@/hooks/auth-hooks.hooks";
 import { useUserStore } from "@/store/store";
+import { registerAndSendFcmToken } from "@/utils/fcm-token.utils";
 
 export default function HomeScreen() {
   const components = ["header", "status", "interests", "posts"];
@@ -19,7 +20,7 @@ export default function HomeScreen() {
   const postsRef = useRef<any>(null);
   const setProfile = useUserProfileStore((state) => state.setProfile);
   const profile = useUserProfileStore((state) => state.profile);
-  const { updateUser,setUser } = useUserStore();
+  const { user, updateUser, setUser } = useUserStore();
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -38,6 +39,16 @@ export default function HomeScreen() {
 
     fetchProfile();
   }, []); // run once on mount
+
+  // Register and send FCM token when user is authenticated
+  useEffect(() => {
+    if (profile || user) {
+      // User is authenticated, ensure FCM token is registered and sent
+      registerAndSendFcmToken().catch((error) => {
+        console.error("Failed to register/send FCM token:", error);
+      });
+    }
+  }, [profile, user]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
