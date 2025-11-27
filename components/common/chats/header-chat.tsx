@@ -1,20 +1,13 @@
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import { COLORS } from "@/config/theme";
 import { generateURL } from "@/utils/image-utils.utils";
-import { Href, router } from "expo-router";
+import { router } from "expo-router";
 import { ArrowLeft2, Call, Video } from "iconsax-react-native";
-import { Image, StyleSheet, TouchableOpacity, View, Alert } from "react-native";
+import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useState } from "react";
 import { useTheme } from "@react-navigation/native";
 import { ChatMessage } from "@/types/chat.types";
-import { formatDistanceToNow } from "date-fns";
-import { useCall } from "@/context/call-provider";
 import { useUserStore } from "@/store/store";
-import {
-  requestMicrophonePermission,
-  requestCallPermissions,
-} from "@/utils/permissions-utils.utils";
-import { toast } from "@/components/lib/toast-manager";
 
 export const HeaderChat = ({
   profileUrl,
@@ -28,16 +21,26 @@ export const HeaderChat = ({
   recipientId?: string;
 }) => {
   const [imageError, setImageError] = useState(false);
+  const theme = useTheme();
+  const { user } = useUserStore();
 
   const imageSource =
     imageError || !profileUrl
       ? require("@/assets/user.png")
       : { uri: generateURL({ url: profileUrl }) };
 
-  const theme = useTheme();
+  // Generate a deterministic 1:1 call ID
+  const generateCallId = (userId: string, recipientId: string) => {
+    return [userId, recipientId].sort().join("-");
+  };
+  
 
-  const { client, createCall } = useCall();
-  const { user } = useUserStore();
+  const callId = generateCallId(user?.id || "", recipientId || "");
+
+  const handleCallPress = () => {
+    if (!callId) return;
+    router.push(`/outgoing-call?id=${callId}`);
+  };
 
   return (
     <ThemedView
@@ -50,7 +53,6 @@ export const HeaderChat = ({
       borderBottomLeftRadius={20}
       borderBottomRightRadius={20}
       borderBottomColor="#eee"
-      // backgroundColor="#fff"
     >
       {/* Left: Back + User Info */}
       <ThemedView flexDirection="row" alignItems="center" flexShrink={1}>
@@ -74,11 +76,10 @@ export const HeaderChat = ({
           {message?.updated_at && (
             <ThemedText fontSize={12} color="#666">
               Last seen{" "}
-              {message?.updated_at &&
-                new Date(message?.updated_at).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+              {new Date(message.updated_at).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </ThemedText>
           )}
         </ThemedView>
@@ -86,18 +87,10 @@ export const HeaderChat = ({
 
       {/* Right: Call & Video */}
       <ThemedView flexDirection="row" alignItems="center" gap={10}>
-        <TouchableOpacity
-          onPress={() => {
-            router.push(`/outgoing-call?id=${recipientId}`);
-          }}
-        >
+        <TouchableOpacity onPress={handleCallPress}>
           <Call color={COLORS.primary} size={28} variant="Broken" />
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => {
-            router.push(`/outgoing-call?id=${recipientId}`);
-          }}
-        >
+        <TouchableOpacity onPress={handleCallPress}>
           <Video color={COLORS.primary} size={28} variant="Broken" />
         </TouchableOpacity>
       </ThemedView>
@@ -110,6 +103,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#ddd", // optional placeholder background
+    backgroundColor: "#ddd",
   },
 });

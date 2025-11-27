@@ -18,12 +18,17 @@ const OutgoingCall = () => {
   };
 
   useEffect(() => {
-    if (!client || !id) return;
+    if (!client || !id || call) return; // <- don't join again
 
     const joinCall = async () => {
-      console.log("Joining call ", id);
       const newCall = client.call("default", id);
-      await newCall.join({ create: true });
+      await newCall.join({
+        create: true,
+        notify: true,
+        members_limit: 2,
+        migrating_from: id,
+        ring: true,
+      });
       setCall(newCall);
     };
 
