@@ -4,10 +4,13 @@ import { generateURL } from "@/utils/image-utils.utils";
 import { router } from "expo-router";
 import { ArrowLeft2, Call, Video } from "iconsax-react-native";
 import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTheme } from "@react-navigation/native";
 import { ChatMessage } from "@/types/chat.types";
 import { useUserStore } from "@/store/store";
+import toast from "@/components/lib/toast-manager";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { io, Socket } from "socket.io-client";
 
 export const HeaderChat = ({
   profileUrl,
@@ -24,6 +27,74 @@ export const HeaderChat = ({
   const theme = useTheme();
   const { user } = useUserStore();
 
+  const socketRef = useRef<Socket | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const setup = async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+        if (!token) {
+          console.warn("No token available for socket connection");
+          return;
+        }
+
+        const socket = io(
+          process.env.EXPO_PUBLIC_API_URL ||
+            "https://z91gp9m2-9999.uks1.devtunnels.ms/chat",
+          {
+            transports: ["websocket"],
+            extraHeaders: { Authorization: `Bearer ${token}` },
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            autoConnect: true,
+          }
+        );
+
+        socketRef.current = socket;
+
+        socket.on("connect", () => {
+          console.log("✅ Connected to chat server:", socket.id);
+        });
+
+        socket.on("error", (data: any) => {
+          toast.show({
+            title: data?.message || "Socket error",
+            type: "error",
+            duration: 2000,
+          });
+          if (data?.message === "Insufficient balance to send message.") {
+            toast.show({
+              title: "Insufficient balance to send message.",
+              type: "error",
+              duration: 4000,
+            });
+          }
+        });
+
+        socket.on("call", (data: any) => {
+          console.log("Call started", data);
+        });
+      } catch (err) {
+        console.warn("Socket setup failed", err);
+      }
+    };
+
+    setup();
+
+    return () => {
+      mounted = false;
+      const sock = socketRef.current;
+      if (sock) {
+        sock.off("private-message");
+        sock.off("connect");
+        sock.off("error");
+        sock.disconnect();
+      }
+      socketRef.current = null;
+    };
+  }, []);
+
   const imageSource =
     imageError || !profileUrl
       ? require("@/assets/user.png")
@@ -33,13 +104,35 @@ export const HeaderChat = ({
   const generateCallId = (userId: string, recipientId: string) => {
     return [userId, recipientId].sort().join("-");
   };
-  
 
   const callId = generateCallId(user?.id || "", recipientId || "");
 
   const handleCallPress = () => {
-    if (!callId) return;
-    router.push(`/outgoing-call?id=${callId}`);
+    const sock = socketRef.current;
+    if (!sock || sock.disconnected) {
+      toast.show({
+        title: "Not connected to chat server.",
+        type: "error",
+        duration: 2000,
+      });
+      return;
+    }
+
+    sock.emit(
+      "call",
+      {
+        toUserId: recipientId,
+        callId: callId,
+      },
+      // optional ack callback
+      (response: any) => {
+        console.log("Call started", response);
+      }
+    );
+    console.log("Call started ......");
+    router.push(
+      `/outgoing-call?id=${callId}&recipientId=${recipientId}&mode=create`
+    );
   };
 
   return (

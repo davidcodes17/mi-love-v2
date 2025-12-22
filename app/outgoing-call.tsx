@@ -11,29 +11,30 @@ import { router, useLocalSearchParams } from "expo-router";
 const OutgoingCall = () => {
   const [call, setCall] = useState<Call | null>(null);
   const client = useStreamVideoClient();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, recipientId, mode } = useLocalSearchParams<{
+    id: string;
+    recipientId: string;
+    mode: "join" | "create";
+  }>();
+
+  const isJoin = mode === "join";
 
   const goBackToChat = () => {
     router.back();
   };
 
   useEffect(() => {
-    if (!client || !id || call) return; // <- don't join again
+    if (!client || !id) return;
 
     const joinCall = async () => {
+      console.log("Joining call ", id);
       const newCall = client.call("default", id);
-      await newCall.join({
-        create: true,
-        notify: true,
-        members_limit: 2,
-        migrating_from: id,
-        ring: true,
-      });
+      await newCall.join({ create: isJoin });
       setCall(newCall);
     };
 
     joinCall();
-  }, [client, id]);
+  }, [client]);
 
   if (!call) {
     return (

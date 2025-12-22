@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   SafeAreaView,
   StyleSheet,
@@ -30,7 +36,7 @@ import {
   Image as ImageIcon,
   CloseCircle,
 } from "iconsax-react-native";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import { COLORS } from "@/config/theme";
@@ -43,7 +49,7 @@ import ChatPanicButton from "@/components/common/chats/panic-button-icon";
 import { toast } from "@/components/lib/toast-manager";
 import BottomSheet, { BottomSheetBackdrop } from "@gorhom/bottom-sheet";
 import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
-import LottieView from 'lottie-react-native';
+import LottieView from "lottie-react-native";
 import { Gift as Gifts } from "@/types/wallet.types";
 import { useGetWallet, useGetAllGifts } from "@/hooks/wallet-hooks.hooks";
 import { generateURL } from "@/utils/image-utils.utils";
@@ -77,12 +83,13 @@ const Chats: React.FC = () => {
   const [showGiftAnimation, setShowGiftAnimation] = useState(false);
   const giftAnimationRef = useRef<LottieView>(null);
 
-
   const socketRef = useRef<Socket | null>(null);
   const [hasMoney, setHasMoney] = useState(false);
   const [checkingWallet, setCheckingWallet] = useState(true);
   const bottomSheetRef = useRef<BottomSheet | null>(null);
   const flatListRef = useRef<FlatList<ChatMessage> | null>(null);
+
+  // const joinCall()
 
   // Local image preview state used by ChatInput; exported here to allow manual upload/use if needed
   const [localImage, setLocalImage] = useState<string | null>(null);
@@ -106,7 +113,7 @@ const Chats: React.FC = () => {
       try {
         const res = await useGetAllGifts();
         if (!mounted) return;
-        console.log(res,"SSS")
+        console.log(res, "SSS");
         setGifts(res?.data ?? []);
       } catch (err) {
         console.warn("Failed to fetch gifts", err);
@@ -185,7 +192,7 @@ const Chats: React.FC = () => {
 
         const socket = io(
           process.env.EXPO_PUBLIC_API_URL ||
-          "https://z91gp9m2-9999.uks1.devtunnels.ms/chat",
+            "https://z91gp9m2-9999.uks1.devtunnels.ms/chat",
           {
             transports: ["websocket"],
             extraHeaders: { Authorization: `Bearer ${token}` },
@@ -239,6 +246,13 @@ const Chats: React.FC = () => {
 
           // scroll to bottom shortly after new message arrives
           setTimeout(() => scrollToBottom(true), 100);
+        });
+
+        socket.on("incoming-call", (data: any) => {
+          console.log("Incoming call", data);
+          router.push(
+            `/ringing?id=${data?.callId}&recipientId=${data?.recipientId}&mode=join`
+          );
         });
       } catch (err) {
         console.warn("Socket setup failed", err);
@@ -336,7 +350,11 @@ const Chats: React.FC = () => {
 
         if (imageUri) {
           // prepare file and upload
-          const file = { uri: imageUri, name: "chat_image.jpg", type: "image/jpeg" };
+          const file = {
+            uri: imageUri,
+            name: "chat_image.jpg",
+            type: "image/jpeg",
+          };
           const res = await useUploadService({ file });
           uploadedFileId = res?.data?.[0]?.id ?? null;
           uploadedFileUrl = res?.data?.[0]?.url ?? null;
@@ -400,7 +418,6 @@ const Chats: React.FC = () => {
     fetchMessages();
   }, [fetchMessages]);
 
-
   /* ---------------- Render helpers ---------------- */
   const renderEmpty = () => {
     if (loadingMessages) {
@@ -419,7 +436,7 @@ const Chats: React.FC = () => {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, paddingTop : 20 }}
+      style={{ flex: 1, paddingTop: 20 }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       {/* Confetti animation - positioned absolutely to cover entire screen */}
@@ -451,13 +468,12 @@ const Chats: React.FC = () => {
       )}
 
       <SafeAreaView style={styles.container}>
-        <HeaderChat 
-          message={messages[messages.length - 1]} 
-          profileUrl={profileUrl ?? ""} 
+        <HeaderChat
+          message={messages[messages.length - 1]}
+          profileUrl={profileUrl ?? ""}
           name={name ?? "Unknown"}
           recipientId={currentUserId}
         />
-
 
         <FlatList
           ref={flatListRef}
@@ -509,11 +525,20 @@ const Chats: React.FC = () => {
               paddingTop: 20,
               paddingHorizontal: 20,
             }}
-            columnWrapperStyle={{ justifyContent: "space-between", marginBottom: 20 }}
-            renderItem={({ item }) => <GiftCompo onSuccess={() => {
-              bottomSheetRef.current?.collapse();
-              setShowGiftAnimation(true)
-            }} gift={item} receiverId={userId ?? ""} />}
+            columnWrapperStyle={{
+              justifyContent: "space-between",
+              marginBottom: 20,
+            }}
+            renderItem={({ item }) => (
+              <GiftCompo
+                onSuccess={() => {
+                  bottomSheetRef.current?.collapse();
+                  setShowGiftAnimation(true);
+                }}
+                gift={item}
+                receiverId={userId ?? ""}
+              />
+            )}
           />
         </BottomSheet>
 
@@ -572,7 +597,12 @@ export const MessageBubble: React.FC<{
         style={styles.announcementContainer}
       >
         <Alarm size={18} color={COLORS.primary} variant="Bold" />
-        <ThemedText fontSize={14} textAlign="center" color={COLORS.primary} fontWeight="600">
+        <ThemedText
+          fontSize={14}
+          textAlign="center"
+          color={COLORS.primary}
+          fontWeight="600"
+        >
           {item.content}
         </ThemedText>
       </Animated.View>
@@ -586,7 +616,10 @@ export const MessageBubble: React.FC<{
           ? SlideInRight.duration(300).springify().damping(15)
           : SlideInLeft.duration(300).springify().damping(15)
       }
-      style={[styles.messageRow, isMe ? styles.otherMessageRow : styles.myMessageRow]}
+      style={[
+        styles.messageRow,
+        isMe ? styles.otherMessageRow : styles.myMessageRow,
+      ]}
     >
       {/* sender avatar on left when sender is me (as requested previously) */}
       {isMe && (
@@ -616,7 +649,10 @@ export const MessageBubble: React.FC<{
       {!item.file?.url && item?.content && (
         <Animated.View
           entering={FadeIn.duration(300).delay(50)}
-          style={[styles.messageBubble, isMe ? styles.otherMessage : styles.myMessage]}
+          style={[
+            styles.messageBubble,
+            isMe ? styles.otherMessage : styles.myMessage,
+          ]}
         >
           <ThemedText color={isMe ? "#000" : "#fff"}>{item.content}</ThemedText>
 
@@ -628,7 +664,10 @@ export const MessageBubble: React.FC<{
               alignSelf="flex-end"
               opacity={0.8}
             >
-              {new Date(item.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              {new Date(item.created_at).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </ThemedText>
           )}
         </Animated.View>
@@ -636,7 +675,11 @@ export const MessageBubble: React.FC<{
       {!isMe && (
         <Animated.View entering={FadeIn.duration(300).delay(100)}>
           <Image
-            source={user ? { uri: generateURL({ url: user.profile_picture.url }) } : DEFAULT_USER_IMAGE}
+            source={
+              user
+                ? { uri: generateURL({ url: user.profile_picture.url }) }
+                : DEFAULT_USER_IMAGE
+            }
             style={styles.avatar}
           />
         </Animated.View>
@@ -657,7 +700,8 @@ const ChatInput: React.FC<{
 
   const pickImage = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
         toast.show({
           title: "Permission denied — allow gallery access to upload an image.",
@@ -706,17 +750,36 @@ const ChatInput: React.FC<{
     >
       {/* image preview */}
       {imageUri && (
-        <View style={{ alignSelf: "flex-start", position: "relative", marginBottom: 4 }}>
+        <View
+          style={{
+            alignSelf: "flex-start",
+            position: "relative",
+            marginBottom: 4,
+          }}
+        >
           <Image
             source={{ uri: imageUri }}
-            style={{ width: 120, height: 120, borderRadius: 12, borderWidth: 0.5, borderColor: "#ccc" }}
+            style={{
+              width: 120,
+              height: 120,
+              borderRadius: 12,
+              borderWidth: 0.5,
+              borderColor: "#ccc",
+            }}
           />
           <TouchableOpacity
             onPress={() => {
               setImageUri(null);
               if (setLocalImage) setLocalImage(null);
             }}
-            style={{ position: "absolute", top: 6, right: 6, backgroundColor: "rgba(0,0,0,0.5)", borderRadius: 20, padding: 3 }}
+            style={{
+              position: "absolute",
+              top: 6,
+              right: 6,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              borderRadius: 20,
+              padding: 3,
+            }}
           >
             <CloseCircle size={18} color="#fff" />
           </TouchableOpacity>
@@ -730,7 +793,11 @@ const ChatInput: React.FC<{
         <TouchableOpacity
           onPress={pickImage}
           accessibilityLabel="Upload image"
-          style={{ backgroundColor: COLORS.primary, padding: 10, borderRadius: 50 }}
+          style={{
+            backgroundColor: COLORS.primary,
+            padding: 10,
+            borderRadius: 50,
+          }}
         >
           <ImageIcon size={20} color={"#fff"} />
         </TouchableOpacity>
@@ -746,12 +813,25 @@ const ChatInput: React.FC<{
           onSubmitEditing={handleSend}
         />
 
-        <TouchableOpacity style={styles.sendButton} onPress={onGiftPress} accessibilityLabel="Open gifts">
+        <TouchableOpacity
+          style={styles.sendButton}
+          onPress={onGiftPress}
+          accessibilityLabel="Open gifts"
+        >
           <GiftIcon size={20} color="#fff" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.sendButton} onPress={handleSend} accessibilityLabel="Send message" disabled={sending}>
-          {sending ? <ActivityIndicator color="#fff" /> : <Send2 size={20} color="#fff" />}
+        <TouchableOpacity
+          style={styles.sendButton}
+          onPress={handleSend}
+          accessibilityLabel="Send message"
+          disabled={sending}
+        >
+          {sending ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Send2 size={20} color="#fff" />
+          )}
         </TouchableOpacity>
       </View>
     </ThemedView>
@@ -760,7 +840,7 @@ const ChatInput: React.FC<{
 
 /* ---------------- Styles ---------------- */
 const styles = StyleSheet.create({
-  container: { flex: 1, },
+  container: { flex: 1 },
   messagesList: {
     paddingVertical: 16,
     paddingHorizontal: 14,
