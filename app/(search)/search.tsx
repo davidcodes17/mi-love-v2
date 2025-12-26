@@ -8,7 +8,9 @@ import { useUserStore } from "@/store/store";
 import { UserProfileR } from "@/types/auth.types";
 import { FilterBy } from "@/types/friend.types";
 import { useState, useRef } from "react";
-import { ActivityIndicator, SafeAreaView, ScrollView } from "react-native";
+import { ActivityIndicator, SafeAreaView, ScrollView, View, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { COLORS, TYPOGRAPHY } from "@/config/theme";
 
 export default function Page() {
   const [searchText, setSearchText] = useState("");
@@ -71,6 +73,20 @@ export default function Page() {
           </ThemedView>
         )}
 
+        {searchText && !isTyping && results.length === 0 && (
+          <View style={styles.notFoundContainer}>
+            <View style={styles.searchIconContainer}>
+              <Ionicons name="search-outline" size={80} color="#ccc" />
+            </View>
+            <ThemedText weight="bold" fontSize={TYPOGRAPHY.title} color="#333" marginBottom={8} textAlign="center">
+              No results found
+            </ThemedText>
+            <ThemedText fontSize={TYPOGRAPHY.md} color="#666" textAlign="center" lineHeight={22} paddingHorizontal={20}>
+              Try searching with different keywords
+            </ThemedText>
+          </View>
+        )}
+
         <ScrollView style={{ paddingTop: 20 }}>
           {results.map((user) => (
             <FriendCompo key={user.id} user={user} isFriend={false} />
@@ -80,3 +96,17 @@ export default function Page() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  notFoundContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 40,
+    paddingVertical: 80,
+    marginTop: 40,
+  },
+  searchIconContainer: {
+    marginBottom: 24,
+    opacity: 0.6,
+  },
+});

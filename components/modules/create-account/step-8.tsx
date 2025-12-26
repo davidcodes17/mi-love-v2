@@ -252,16 +252,24 @@ export default Step8;
 const styles = StyleSheet.create({
   phoneContainer: {
     width: "100%",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-    backgroundColor: "#F5F6FA",
+    height: 56,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#e0e0e0",
+    backgroundColor: "#fff",
+    paddingHorizontal: 4,
   },
   phoneTextContainer: {
-    borderRadius: 14,
-    backgroundColor: "#F5F6FA",
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
+    backgroundColor: "#fff",
+    paddingLeft: 8,
   },
   flagButton: {
-    marginRight: 8,
+    width: 70,
+    borderRightWidth: 1,
+    borderRightColor: "#e0e0e0",
+    marginRight: 0,
+    paddingRight: 8,
   },
 });

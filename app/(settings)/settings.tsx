@@ -102,10 +102,15 @@ const Settings = () => {
   ];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+    <SafeAreaView style={{ flex: 1, paddingTop: 20, backgroundColor: "#fff" }}>
       <ThemedView padding={20}>
         {/* Redesigned Header */}
-        <ThemedView marginBottom={18} flexDirection="row" alignItems="center" gap={15}>
+        <ThemedView
+          marginBottom={18}
+          flexDirection="row"
+          alignItems="center"
+          gap={15}
+        >
           <BackButton />
           <ThemedText
             fontSize={26}

@@ -12,7 +12,8 @@ import React, { useEffect, useState } from "react";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import BackButton from "@/components/common/back-button";
 import NativeButton from "@/components/ui/native-button";
-import { COLORS } from "@/config/theme";
+import { COLORS, TYPOGRAPHY } from "@/config/theme";
+import { Ionicons } from "@expo/vector-icons";
 import {
   More,
   Message2,
@@ -477,18 +478,22 @@ const ViewFriend = () => {
                 linkBase="/(home)/home"
               />
             ) : (
-              <ThemedView
-                padding={40}
-                justifyContent="center"
-                alignItems="center"
-                backgroundColor="#f9f9f9"
-                borderRadius={16}
-              >
-                <DocumentText size={48} color="#ccc" variant="Outline" />
-                <ThemedText fontSize={16} color="#666" marginTop={12}>
-                  No posts yet
+              <View style={styles.emptyStateContainer}>
+                <View style={styles.emptyStateIconContainer}>
+                  <View style={styles.iconWrapper}>
+                    <Ionicons name="heart-outline" size={64} color={COLORS.primary} />
+                  </View>
+                </View>
+                <ThemedText weight="bold" fontSize={TYPOGRAPHY.title} color="#333" marginBottom={8} textAlign="center">
+                  No Posts Yet
                 </ThemedText>
-              </ThemedView>
+                <ThemedText weight="semibold" fontSize={TYPOGRAPHY.md} color={COLORS.primary} marginBottom={12} textAlign="center">
+                  {isOwnProfile ? "Share your first moment!" : `${friend.first_name} hasn't shared anything yet`}
+                </ThemedText>
+                <ThemedText fontSize={TYPOGRAPHY.sm} color="#666" textAlign="center" lineHeight={20}>
+                  {isOwnProfile ? "Posts you create will appear here." : "Check back later for updates."}
+                </ThemedText>
+              </View>
             )}
           </ThemedView>
         </ThemedView>
@@ -499,4 +504,28 @@ const ViewFriend = () => {
 
 export default ViewFriend;
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  emptyStateContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 40,
+    paddingVertical: 60,
+    backgroundColor: "#f9f9f9",
+    borderRadius: 16,
+  },
+  emptyStateIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(93, 2, 1, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  iconWrapper: {
+    justifyContent: "center",
+    alignItems: "center",
+    width: 64,
+    height: 64,
+  },
+});

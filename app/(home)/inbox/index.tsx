@@ -19,6 +19,8 @@ export default function Page() {
   const [refreshing, setRefreshing] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const fetchChatsRef = useRef<((showMainLoader?: boolean) => Promise<void>) | null>(null);
+  const connectionErrorCountRef = useRef(0);
+  const maxConnectionAttempts = 3;
 
   const { user } = useUserStore();
 
@@ -71,14 +73,14 @@ export default function Page() {
       try {
         const token = await AsyncStorage.getItem("token");
         if (!token) {
-          console.warn("Inbox: No token available for socket connection");
+          console.warn("⚠️ Inbox: No token available for socket connection");
           return;
         }
 
         // Use the same base URL as the API
         const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://z91gp9m2-9999.uks1.devtunnels.ms';
         
-        console.log("🔌 Inbox: Connecting to socket server:", API_BASE_URL);
+        console.log("🔌 Inbox: Attempting socket connection to:", API_BASE_URL);
 
         const socket = io(API_BASE_URL, {
           transports: ["websocket"],
@@ -88,9 +90,10 @@ export default function Page() {
           query: {
             userId: user?.id || "",
           },
-          reconnectionAttempts: 10,
-          reconnectionDelay: 1000,
+          reconnectionAttempts: maxConnectionAttempts,
+          reconnectionDelay: 2000,
           reconnectionDelayMax: 5000,
+          timeout: 10000,
           autoConnect: true,
           forceNew: true,
         });
@@ -99,18 +102,32 @@ export default function Page() {
 
         socket.on("connect", () => {
           console.log("✅ Inbox: Connected to chat server:", socket.id);
+          connectionErrorCountRef.current = 0; // Reset error count on successful connection
         });
 
         socket.on("disconnect", (reason) => {
           console.log("❌ Inbox: Disconnected from chat server:", reason);
           if (reason === "io server disconnect") {
-            // Server disconnected, reconnect manually
-            socket?.connect();
+            // Server disconnected, attempt reconnect if under limit
+            if (connectionErrorCountRef.current < maxConnectionAttempts) {
+              socket?.connect();
+            }
           }
         });
 
         socket.on("connect_error", (error) => {
-          console.error("🔴 Inbox: Socket connection error:", error.message);
+          connectionErrorCountRef.current++;
+          
+          // Only log first few errors to avoid spam
+          if (connectionErrorCountRef.current <= maxConnectionAttempts) {
+            console.error(`🔴 Inbox: Socket connection error (${connectionErrorCountRef.current}/${maxConnectionAttempts}):`, error.message);
+          }
+          
+          // Stop trying after max attempts
+          if (connectionErrorCountRef.current >= maxConnectionAttempts) {
+            console.warn("⚠️ Inbox: Max connection attempts reached. Socket disabled for this session.");
+            socket.disconnect();
+          }
         });
 
         // Listen for new messages
@@ -207,10 +224,12 @@ export default function Page() {
         });
 
         socket.on("error", (data: any) => {
-          console.error("🔴 Inbox: Socket error:", data);
+          if (connectionErrorCountRef.current < maxConnectionAttempts) {
+            console.error("🔴 Inbox: Socket error:", data);
+          }
         });
       } catch (err) {
-        console.error("Failed to setup inbox socket:", err);
+        console.error("❌ Inbox: Failed to setup socket:", err);
       }
     };
 

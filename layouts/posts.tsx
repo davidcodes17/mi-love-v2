@@ -12,12 +12,13 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import ThemedView from "@/components/ui/themed-view";
+import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import { PostsResponse, Post as PostType } from "@/types/post.types";
 import Post from "@/components/common/post";
 import { useGetAllPosts } from "@/hooks/post-hooks.hooks";
 import TextPost from "@/components/common/text-post";
-import { COLORS } from "@/config/theme";
+import { COLORS, TYPOGRAPHY } from "@/config/theme";
+import { Ionicons } from "@expo/vector-icons";
 
 const Posts = forwardRef((props, ref) => {
   const [data, setData] = useState<PostsResponse>(null!);
@@ -56,6 +57,25 @@ const Posts = forwardRef((props, ref) => {
     setRefreshing(false);
   }, []);
 
+  const renderEmptyState = () => (
+    <View style={styles.emptyStateContainer}>
+      <View style={styles.emptyStateIconContainer}>
+        <View style={styles.iconWrapper}>
+          <Ionicons name="heart-outline" size={64} color={COLORS.primary} />
+        </View>
+      </View>
+      <ThemedText weight="bold" fontSize={TYPOGRAPHY.title} color="#333" marginBottom={8} textAlign="center">
+        No Posts Yet
+      </ThemedText>
+      <ThemedText weight="semibold" fontSize={TYPOGRAPHY.md} color={COLORS.primary} marginBottom={12} textAlign="center">
+        Be the first to share something special!
+      </ThemedText>
+      <ThemedText fontSize={TYPOGRAPHY.sm} color="#666" textAlign="center" lineHeight={20}>
+        Posts from people you follow will appear here.
+      </ThemedText>
+    </View>
+  );
+
   return (
     <ThemedView marginTop={20} gap={20} flex={1}>
       {loading ? (
@@ -73,6 +93,7 @@ const Posts = forwardRef((props, ref) => {
               <TextPost post={item} />
             )
           }
+          ListEmptyComponent={renderEmptyState}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -91,5 +112,27 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 40,
+    paddingVertical: 60,
+  },
+  emptyStateIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(93, 2, 1, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  iconWrapper: {
+    justifyContent: "center",
+    alignItems: "center",
+    width: 64,
+    height: 64,
   },
 });

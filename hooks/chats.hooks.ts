@@ -26,13 +26,17 @@ export const useChatSocket = (
         console.log(" codeeeee")
         const token = await AsyncStorage.getItem("token"); // 👈 get stored token
 
-        const socket = io("https://ttznxdxb-9999.uks1.devtunnels.ms", {
-          transports: ["websocket"],
-          query: { userId },
-          auth: {
-            token: token ? `Bearer ${token}` : "", // 👈 attach Bearer token
-          },
-        });
+        const socket = io(
+          process.env.EXPO_PUBLIC_API_URL || 
+            "https://ttznxdxb-9999.uks1.devtunnels.ms",
+          {
+            transports: ["websocket"],
+            query: { userId },
+            auth: {
+              token: token ? `Bearer ${token}` : "", // 👈 attach Bearer token
+            },
+          }
+        );
 
         console.log(" codeeeeesss")
 

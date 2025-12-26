@@ -329,7 +329,11 @@ const Step7 = ({
               }}
               text={isLast ? "Submit" : "Next"}
               mode="fill"
-              style={{ borderRadius: 100 }}
+              disabled={!values.profileImage || !values.gender || !values.dob}
+              style={{ 
+                borderRadius: 100,
+                opacity: (!values.profileImage || !values.gender || !values.dob) ? 0.5 : 1 
+              }}
             />
           </ThemedView>
         </ThemedView>

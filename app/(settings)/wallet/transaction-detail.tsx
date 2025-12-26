@@ -153,7 +153,7 @@ const TransactionDetail = () => {
             <BackButton />
             <ThemedText
               fontSize={20}
-              fontWeight="bold"
+              weight="bold"
               marginLeft={15}
               flex={1}
             >
@@ -191,7 +191,7 @@ const TransactionDetail = () => {
 
             <ThemedText
               fontSize={36}
-              fontWeight="bold"
+              weight="bold"
               color={isCredit ? "#10B981" : "#EF4444"}
               marginBottom={8}
             >

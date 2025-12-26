@@ -99,7 +99,7 @@ const Wallet = () => {
           marginBottom={20}
         >
           <BackButton />
-          <ThemedText fontSize={22} fontWeight="bold" flex={1} marginLeft={15}>
+          <ThemedText fontSize={22} weight="bold" flex={1} marginLeft={15}>
             Wallet
           </ThemedText>
           <Image
@@ -191,7 +191,7 @@ const Wallet = () => {
             alignItems="center"
             marginBottom={16}
           >
-            <ThemedText fontSize={20} fontWeight="bold" color="#111">
+            <ThemedText fontSize={20} weight="bold" color="#111">
               Recent Transactions
             </ThemedText>
             {transactions.length > 0 && (
@@ -368,7 +368,7 @@ const TransactionCard = ({
         <ThemedView alignItems="flex-end" gap={8}>
           <ThemedText
             fontSize={16}
-            fontWeight="700"
+            weight="bold"
             color={isCredit ? "#10B981" : "#EF4444"}
           >
             {isCredit ? "+" : "-"}
