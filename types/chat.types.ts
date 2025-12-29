@@ -50,7 +50,7 @@ export interface ProfilePicture {
 
 export interface Message {
   id: string;
-  type: "text" | "announcement"; // can extend with more types
+  type: "text" | "announcement" | "call" | "video-call"; // can extend with more types
   content: string;
   edited: boolean;
   deleted: boolean;

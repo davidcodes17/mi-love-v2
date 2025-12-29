@@ -253,12 +253,7 @@ const Chats: React.FC = () => {
           setTimeout(() => scrollToBottom(true), 100);
         });
 
-        socket.on("incoming-call", (data: any) => {
-          console.log("Incoming call", data);
-          router.push(
-            `/ringing?id=${data?.callId}&recipientId=${data?.recipientId}&mode=join`
-          );
-        });
+        // Note: incoming-call is now handled globally in _layout.tsx IncomingCallListener
       } catch (err) {
         console.warn("Socket setup failed", err);
       }
@@ -435,7 +430,7 @@ const Chats: React.FC = () => {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, paddingTop: 20 }}
+      style={{ flex: 1, paddingTop: 40 }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       {/* Confetti animation - positioned absolutely to cover entire screen */}

@@ -255,7 +255,7 @@ const EditAccount = () => {
   ];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#f7f8fa" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#f7f8fa", paddingTop : 50 }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
@@ -275,7 +275,7 @@ const EditAccount = () => {
             <BackButton />
             <ThemedText
               fontSize={22}
-              fontWeight="bold"
+              weight="bold"
               marginLeft={15}
               flex={1}
             >

@@ -4,7 +4,7 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
-import { Stack, useSegments, useRouter, usePathname, Redirect } from "expo-router";
+import { Stack, useSegments, useRouter, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState, useRef } from "react";
@@ -26,12 +26,21 @@ import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import { COLORS } from "@/config/theme";
 import { useUserStore } from "@/store/store";
 import LoadingScreen from "@/components/common/loading-screen";
+import { io, Socket } from "socket.io-client";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 // Protected route groups that require authentication
-const PROTECTED_ROUTES = ["(home)", "(chats)", "(settings)", "(friends)", "(notifications)", "(search)", "(status)"];
+const PROTECTED_ROUTES = [
+  "(home)",
+  "(chats)",
+  "(settings)",
+  "(friends)",
+  "(notifications)",
+  "(search)",
+  "(status)",
+];
 
 // Protected standalone routes (root level)
 const PROTECTED_STANDALONE_ROUTES = ["video-call", "outgoing-call"];
@@ -58,19 +67,19 @@ function ProtectedRouteWrapper({ children }: { children: React.ReactNode }) {
     const checkAuth = async () => {
       try {
         setIsCheckingAuth(true);
-        
+
         // Small delay to prevent flickering
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         if (!mounted) return;
 
         const token = await AsyncStorage.getItem("token");
         const hasToken = !!token;
         const hasUser = !!user && Object.keys(user).length > 0;
-        
+
         // User is authenticated only if BOTH token and user object exist
         const authenticated = hasToken && hasUser;
-        
+
         if (mounted) {
           setIsAuthenticated(authenticated);
         }
@@ -103,32 +112,39 @@ function ProtectedRouteWrapper({ children }: { children: React.ReactNode }) {
 
     const currentRoute = segments[0] || "";
     const path = pathname || "";
-    
+
     // Prevent unnecessary redirects if we're already on the target route
     if (path === lastPathRef.current) {
       return;
     }
     lastPathRef.current = path;
-    
+
     // Check if current path is a protected route
     const isProtectedRoute = PROTECTED_ROUTES.includes(currentRoute);
-    const isProtectedStandalone = PROTECTED_STANDALONE_ROUTES.some(route => path.includes(route));
-    const isOnEntryRoute = path.startsWith("/(entry)") || path.startsWith("/auth") || path === "/";
+    const isProtectedStandalone = PROTECTED_STANDALONE_ROUTES.some((route) =>
+      path.includes(route)
+    );
+    const isOnEntryRoute =
+      path.startsWith("/(entry)") || path.startsWith("/auth") || path === "/";
 
     // If not authenticated (no token OR no user), redirect to entry unless already on entry route
     if (!isAuthenticated) {
-      if (isProtectedRoute || isProtectedStandalone || (!isOnEntryRoute && path !== "")) {
+      if (
+        isProtectedRoute ||
+        isProtectedStandalone ||
+        (!isOnEntryRoute && path !== "")
+      ) {
         // Prevent multiple redirects
         if (isRedirecting) return;
-        
+
         setIsRedirecting(true);
-        
+
         // Small delay for smoother transition
         // redirectTimeoutRef.current = setTimeout(() => {
         //   router.replace("/(entry)");
         //   setTimeout(() => setIsRedirecting(false), 300);
         // }, 150);
-        
+
         return;
       }
     }
@@ -136,18 +152,19 @@ function ProtectedRouteWrapper({ children }: { children: React.ReactNode }) {
     // If authenticated and on entry route (but not on specific auth pages), redirect to home
     if (isAuthenticated && isOnEntryRoute) {
       // Only redirect if on the main entry/index page, not on specific auth pages like login, create-account
-      const isOnAuthPage = path.includes("/auth/login") || 
-                           path.includes("/auth/create-account") || 
-                           path.includes("/auth/forgot-password") ||
-                           path.includes("/auth/reset-password") ||
-                           path.includes("/auth/verify-otp");
-      
+      const isOnAuthPage =
+        path.includes("/auth/login") ||
+        path.includes("/auth/create-account") ||
+        path.includes("/auth/forgot-password") ||
+        path.includes("/auth/reset-password") ||
+        path.includes("/auth/verify-otp");
+
       if (!isOnAuthPage && path !== "") {
         // Prevent multiple redirects
         if (isRedirecting) return;
-        
+
         setIsRedirecting(true);
-        
+
         // Small delay for smoother transition
         // redirectTimeoutRef.current = setTimeout(() => {
         //   router.replace("/(home)");
@@ -155,7 +172,15 @@ function ProtectedRouteWrapper({ children }: { children: React.ReactNode }) {
         // }, 150);
       }
     }
-  }, [segments, pathname, isAuthenticated, isCheckingAuth, hasChecked, router, isRedirecting]);
+  }, [
+    segments,
+    pathname,
+    isAuthenticated,
+    isCheckingAuth,
+    hasChecked,
+    router,
+    isRedirecting,
+  ]);
 
   // Show loading while checking auth or redirecting
   // if (isCheckingAuth || isRedirecting) {
@@ -163,6 +188,105 @@ function ProtectedRouteWrapper({ children }: { children: React.ReactNode }) {
   // }
 
   return <>{children}</>;
+}
+
+// Global incoming call listener so calls ring anywhere in the app
+function IncomingCallListener() {
+  const { user } = useUserStore();
+  const router = useRouter();
+  const socketRef = useRef<Socket | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
+    let mounted = true;
+
+    const setup = async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+        if (!token) {
+          console.warn(
+            "IncomingCallListener: No token available for socket connection"
+          );
+          return;
+        }
+
+        const socketUrl = process.env.EXPO_PUBLIC_API_URL 
+          ? `${process.env.EXPO_PUBLIC_API_URL}/chat`
+          : "https://mi-love-api-production.up.railway.app/chat";
+
+        console.log("🔌 IncomingCallListener: Connecting to:", socketUrl);
+
+        const socket = io(socketUrl, {
+          transports: ["websocket"],
+          extraHeaders: { Authorization: `Bearer ${token}` },
+          reconnectionAttempts: 5,
+          reconnectionDelay: 1000,
+          autoConnect: true,
+        });
+
+        socketRef.current = socket;
+
+        socket.on("connect", () => {
+          console.log("✅ IncomingCallListener connected:", socket.id);
+        });
+
+        socket.on("connect_error", (error: any) => {
+          console.error("❌ IncomingCallListener connection error:", error?.message || error);
+        });
+
+        socket.on("disconnect", (reason: string) => {
+          console.log("🔌 IncomingCallListener disconnected:", reason);
+        });
+
+        socket.on("incoming-call", (data: any) => {
+          if (!mounted) return;
+          console.log("📞 IncomingCallListener: Incoming call data:", JSON.stringify(data, null, 2));
+          
+          const callId = data?.callId;
+          const senderId = data?.fromUserId || data?.senderId || data?.userId;
+          
+          if (!callId || !senderId) {
+            console.error("❌ Missing callId or senderId:", { callId, senderId, data });
+            return;
+          }
+
+          console.log(`📞 Routing to ringing: callId=${callId}, recipientId=${senderId}`);
+          
+          router.push(
+            `/ringing?id=${callId}&recipientId=${senderId}&mode=join`
+          );
+        });
+
+        socket.on("error", (err: any) => {
+          console.warn(
+            "IncomingCallListener socket error",
+            err?.message || err
+          );
+        });
+      } catch (err) {
+        console.warn("IncomingCallListener setup failed", err);
+      }
+    };
+
+    setup();
+
+    return () => {
+      mounted = false;
+      const sock = socketRef.current;
+      if (sock) {
+        sock.off("incoming-call");
+        sock.off("connect");
+        sock.off("error");
+        sock.disconnect();
+      }
+      socketRef.current = null;
+    };
+  }, [user?.id, router]);
+
+  return null;
 }
 
 export default function RootLayout() {
@@ -197,6 +321,7 @@ export default function RootLayout() {
         <ThemeProvider value={colorScheme === "dark" ? DarkTheme : LightTheme}>
           <ProtectedRouteWrapper>
             <CallProvider>
+              <IncomingCallListener />
               <Stack>
                 <Stack.Screen name="(home)" options={{ headerShown: false }} />
                 <Stack.Screen
@@ -221,8 +346,14 @@ export default function RootLayout() {
                   options={{ headerShown: false }}
                 />
                 <Stack.Screen name="(entry)" options={{ headerShown: false }} />
-                <Stack.Screen name="video-call" options={{ headerShown: false }} />
-                <Stack.Screen name="outgoing-call" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="video-call"
+                  options={{ headerShown: false }}
+                />
+                <Stack.Screen
+                  name="outgoing-call"
+                  options={{ headerShown: false }}
+                />
                 <Stack.Screen name="ringing" options={{ headerShown: false }} />
                 <Stack.Screen name="+not-found" />
               </Stack>

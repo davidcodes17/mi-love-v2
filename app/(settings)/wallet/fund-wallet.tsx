@@ -7,8 +7,9 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
+import * as Linking from "expo-linking";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import BackButton from "@/components/common/back-button";
 import InputField from "@/components/common/input-field";
@@ -31,6 +32,12 @@ const FundWallet = () => {
   // Quick amount options (in dollars, starting from $5)
   const quickAmounts = [5, 10, 25, 50, 100, 250];
 
+  // Generate the redirect URL for Flutterwave
+  const getRedirectUrl = () => {
+    const scheme = Linking.createURL("/payment-callback");
+    return scheme;
+  };
+
   const handleFund = async () => {
     const amt = parseInt(amount.replace(/,/g, ""), 10);
     
@@ -46,17 +53,26 @@ const FundWallet = () => {
 
     try {
       setLoadingFund(true);
+      const redirectUrl = getRedirectUrl();
+      
       const response: any = await useGeneratePaymentLink({
-        data: { amount: amt },
+        data: { 
+          amount: amt,
+          redirect_url: redirectUrl, // Include redirect URL
+        },
       });
       
       if (response?.link) {
-        await WebBrowser.openBrowserAsync(response.link);
-        toast.info("Redirecting to payment gateway...");
-        // Navigate back after a delay
-        setTimeout(() => {
-          router.back();
-        }, 1000);
+        // Use WebBrowser.openBrowserAsync which will handle the redirect back to the app
+        const result = await WebBrowser.openBrowserAsync(response.link);
+        
+        // Log the result for debugging
+        console.log("WebBrowser result:", result);
+        
+        // If user dismissed the browser, show a message
+        if (result.type === "dismiss") {
+          toast.info("Payment cancelled");
+        }
       } else {
         toast.error(response?.message || "Failed to generate payment link");
       }

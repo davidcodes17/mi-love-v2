@@ -86,14 +86,55 @@ const ChatCompo: React.FC<ChatCompoProps> = ({ chat, currentUserId }) => {
             </ThemedText>
             <ThemedText numberOfLines={1} fontSize={12} ellipsizeMode="tail">
               {
-                lastMessage?.content
-                  ? lastMessage?.content
-                  : lastMessage?.file?.url &&
+                //@ts-ignore
+                (() => {
+                  // Check if it's a call type message
+                  if (lastMessage?.type === "call" || lastMessage?.type === "video-call") {
+                    const isVideoCall = lastMessage?.type === "video-call";
+                    const content = lastMessage?.content?.toLowerCase() || "";
+                    const isMissedCall = content.includes("missed");
+                    const isIncoming = content.includes("incoming");
+                    const isOutgoing = content.includes("outgoing") || content.includes("initiated");
+                    
+                    const callType = isVideoCall ? "📹 Video call" : "📞 Voice call";
+                    const callStatus = isMissedCall ? " - Missed" : isIncoming ? " - Incoming" : isOutgoing ? " - Outgoing" : "";
+                    return `${callType}${callStatus}`;
+                  }
+                  
+                  // Check if it's an announcement that mentions a call
+                  if (lastMessage?.type === "announcement") {
+                    const content = lastMessage?.content?.toLowerCase() || "";
+                    if (content.includes("call")) {
+                      // Extract call info from announcement
+                      const isVideoCall = content.includes("video");
+                      const isMissedCall = content.includes("missed");
+                      const isIncoming = content.includes("incoming");
+                      const isOutgoing = content.includes("outgoing") || content.includes("initiated");
+                      
+                      const callType = isVideoCall ? "📹 Video call" : "📞 Voice call";
+                      const callStatus = isMissedCall ? " - Missed" : isIncoming ? " - Incoming" : isOutgoing ? " - Outgoing" : "";
+                      return `${callType}${callStatus}`;
+                    }
+                    // Other announcements just show content
+                    return lastMessage?.content;
+                  }
+                  
+                  // Regular text messages
+                  if (lastMessage?.content) {
+                    return lastMessage?.content;
+                  }
+                  
+                  // Image attachment
+                  if (lastMessage?.file?.url &&
                     ["jpg", "jpeg", "png", "svg"].some(ext =>
                       lastMessage?.file?.url.toLowerCase().endsWith(ext)
                     )
-                    ? "🖼️ Image Shared"
-                    : "No messages yet"
+                  ) {
+                    return "🖼️ Image Shared";
+                  }
+                  
+                  return "No messages yet";
+                })()
               }
 
             </ThemedText>
