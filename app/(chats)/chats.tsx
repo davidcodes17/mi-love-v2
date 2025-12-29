@@ -192,7 +192,7 @@ const Chats: React.FC = () => {
 
         const socket = io(
           process.env.EXPO_PUBLIC_API_URL ||
-            "https://z91gp9m2-9999.uks1.devtunnels.ms/chat",
+            "https://mi-love-api-production.up.railway.app/chat",
           {
             transports: ["websocket"],
             extraHeaders: { Authorization: `Bearer ${token}` },

@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { toast } from "@/components/lib/toast-manager";
 
 // Configure the base URL for your API
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://3v3gcz8b-9999.uks1.devtunnels.ms'
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://mi-love-api-production.up.railway.app'
 
 // Extend AxiosRequestConfig to include skipToast option
 declare module 'axios' {
