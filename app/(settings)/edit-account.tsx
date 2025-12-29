@@ -208,23 +208,22 @@ const EditAccount = () => {
         data: { ...form, profile_picture_id: profilePictureId },
       });
 
-      setSaving(false);
-
       if (result && !result.error) {
-        // Update user store with new data
-        if (profile) {
-          setUser({
-            ...profile,
-            ...form,
-            profile_picture: profilePictureId
-              ? { ...profile.profile_picture, url: images[0] || profile.profile_picture.url }
-              : profile.profile_picture,
-          });
+        // Fetch fresh profile data from server
+        try {
+          const freshProfile = await useGetProfile();
+          if (freshProfile?.data) {
+            setUser(freshProfile.data);
+          }
+        } catch (err) {
+          console.log("Failed to refresh profile:", err);
         }
 
         toast.success("Profile updated successfully!");
+        setSaving(false);
         router.back();
       } else {
+        setSaving(false);
         const errorMessage = Array.isArray(result?.message)
           ? result.message.join(", ")
           : result?.message || "Failed to update profile. Please try again.";

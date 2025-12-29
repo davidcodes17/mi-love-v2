@@ -115,7 +115,7 @@ const Onboarding = () => {
   }
 
   return (
-    <SafeAreaView style={[globalStyles.wrapper, { flex: 1, paddingTop : 30 }]}>
+    <SafeAreaView style={[globalStyles.wrapper, { flex: 1, paddingTop : 40 }]}>
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingBottom : 40 }}
         style={{ flex: 1 }} 

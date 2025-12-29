@@ -17,11 +17,13 @@ export const HeaderChat = ({
   name,
   message,
   recipientId,
+  chatId,
 }: {
   name?: string;
   profileUrl: string;
   message: ChatMessage;
   recipientId?: string;
+  chatId?: string;
 }) => {
   const [imageError, setImageError] = useState(false);
   const theme = useTheme();
@@ -41,7 +43,7 @@ export const HeaderChat = ({
 
         const socket = io(
           process.env.EXPO_PUBLIC_API_URL ||
-            "https://z91gp9m2-9999.uks1.devtunnels.ms/chat",
+            "https://mi-love-api-production.up.railway.app/chat",
           {
             transports: ["websocket"],
             extraHeaders: { Authorization: `Bearer ${token}` },
@@ -130,9 +132,17 @@ export const HeaderChat = ({
       }
     );
     console.log("Call started ......");
-    router.push(
-      `/outgoing-call?id=${callId}&recipientId=${recipientId}&mode=create`
-    );
+    router.push({
+      pathname: "/outgoing-call",
+      params: {
+        id: callId,
+        recipientId: recipientId,
+        mode: "create",
+        chatId: chatId,
+        profileUrl: profileUrl,
+        name: name,
+      },
+    } as any);
   };
 
   return (

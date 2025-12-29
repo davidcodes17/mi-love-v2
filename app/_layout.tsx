@@ -223,6 +223,7 @@ export default function RootLayout() {
                 <Stack.Screen name="(entry)" options={{ headerShown: false }} />
                 <Stack.Screen name="video-call" options={{ headerShown: false }} />
                 <Stack.Screen name="outgoing-call" options={{ headerShown: false }} />
+                <Stack.Screen name="ringing" options={{ headerShown: false }} />
                 <Stack.Screen name="+not-found" />
               </Stack>
             </CallProvider>

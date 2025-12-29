@@ -8,7 +8,7 @@ import InputField from "@/components/common/input-field";
 import { Flag, Home, SearchNormal } from "iconsax-react-native";
 import NativeButton from "@/components/ui/native-button";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
-import PhoneInput from "react-native-phone-number-input";
+import PhoneInput from "@/components/common/phone-input";
 
 // List of countries
 const countries = [
@@ -135,25 +135,12 @@ const Step8 = ({
         <ThemedView marginTop={15}>
           <ThemedText marginBottom={6}>Phone Number</ThemedText>
           <PhoneInput
-            defaultValue={values.phonenumber}
-            defaultCode="NG"
-            layout="first"
-            onChangeFormattedText={(text) =>
-              handleChange("phonenumber")(text)
-            }
-            containerStyle={styles.phoneContainer}
-            textContainerStyle={styles.phoneTextContainer}
-            codeTextStyle={{ color: "#000", fontSize: 16 }}
-            textInputStyle={{ color: "#000", fontSize: 16 }}
-            flagButtonStyle={styles.flagButton}
-            withDarkTheme={false}
-            withShadow={false}
+            value={values.phonenumber}
+            onChangeText={handleChange("phonenumber")}
+            placeholder="Phone number"
+            defaultCountryCode="NG"
+            error={touched.phonenumber && errors.phonenumber ? errors.phonenumber : undefined}
           />
-          {touched.phonenumber && errors.phonenumber && (
-            <ThemedText color="red" marginTop={4}>
-              {errors.phonenumber}
-            </ThemedText>
-          )}
         </ThemedView>
 
         <ThemedView

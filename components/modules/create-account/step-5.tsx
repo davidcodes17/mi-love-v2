@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import globalStyles from "@/components/styles/global-styles";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import NativeButton from "@/components/ui/native-button";
-import PhoneInput from "react-native-phone-number-input";
+import PhoneInput from "@/components/common/phone-input";
 
 interface Step5Props {
   values: any;
@@ -43,25 +43,12 @@ const Step5 = ({
       <ThemedView marginTop={20}>
         <ThemedText marginBottom={6}>Emergency Contact</ThemedText>
         <PhoneInput
-          defaultValue={values.emergencyContact}
-          defaultCode="NG"
-          layout="first"
-          onChangeFormattedText={(text) =>
-            handleChange("emergencyContact")(text)
-          }
-          containerStyle={styles.phoneContainer}
-          textContainerStyle={styles.phoneTextContainer}
-          codeTextStyle={{ color: "#000", fontSize: 16 }}
-          textInputStyle={{ color: "#000", fontSize: 16 }}
-          flagButtonStyle={styles.flagButton}
-          withDarkTheme={false}
-          withShadow={false}
+          value={values.emergencyContact}
+          onChangeText={handleChange("emergencyContact")}
+          placeholder="Phone number"
+          defaultCountryCode="NG"
+          error={touched.emergencyContact && errors.emergencyContact ? errors.emergencyContact : undefined}
         />
-        {touched.emergencyContact && errors.emergencyContact && (
-          <ThemedText color="red" marginTop={4}>
-            {errors.emergencyContact}
-          </ThemedText>
-        )}
       </ThemedView>
 
       <ThemedView

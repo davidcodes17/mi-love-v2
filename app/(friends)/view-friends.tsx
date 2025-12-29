@@ -48,19 +48,24 @@ const ViewFriend = () => {
   const [isFriendLoading, setIsFriendLoading] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const { user: currentUser } = useUserStore();
 
   const fetchFriend = async () => {
     if (!friendId) return;
     try {
       setLoading(true);
+      setImageError(false); // Reset image error state
       const response = await useGetSingleFriend({ id: friendId });
       const friendData = response?.data || response;
       
       // Ensure friendData is an object, not a string
       if (typeof friendData === 'object' && friendData !== null) {
         setFriend(friendData);
-        console.log(friendData?.id, "friendData?.id");
+        console.log("Friend data loaded:", {
+          id: friendData?.id,
+          profilePicture: friendData?.profile_picture,
+        });
       } else {
         console.error("Invalid friend data received:", friendData);
         setFriend(null);
@@ -267,7 +272,7 @@ const ViewFriend = () => {
             >
               <Image
                 source={
-                  friend?.profile_picture?.url
+                  !imageError && friend?.profile_picture?.url
                     ? { uri: generateURL({ url: friend.profile_picture.url }) }
                     : require("@/assets/user.png")
                 }
@@ -277,6 +282,15 @@ const ViewFriend = () => {
                   borderRadius: 60,
                 }}
                 resizeMode="cover"
+                onError={(e) => {
+                  console.log("Image load error:", e.nativeEvent);
+                  console.log("Attempted URL:", friend?.profile_picture?.url);
+                  setImageError(true);
+                }}
+                onLoad={() => {
+                  console.log("Image loaded successfully");
+                }}
+                defaultSource={require("@/assets/user.png")}
               />
             </View>
             <ThemedText

@@ -35,6 +35,11 @@ import {
   Send2,
   Image as ImageIcon,
   CloseCircle,
+  Call,
+  VideoCircle,
+  CallReceived,
+  CallCalling,
+  CallSlash,
 } from "iconsax-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
@@ -275,25 +280,19 @@ const Chats: React.FC = () => {
   }, [chatId]);
 
   /* ---------------- sort messages ----------------
-     announcements first (chronological), then normal messages chronological
+     all messages in chronological order (announcements, calls, and regular messages mixed)
   */
   const sortedMessages = useMemo(() => {
     const arr = [...messages];
-    const announcements = arr.filter((m) => m.type === "announcement");
-    const rest = arr.filter((m) => m.type !== "announcement");
-
-    announcements.sort(
-      (a, b) =>
-        (new Date(a.created_at).getTime() || 0) -
-        (new Date(b.created_at).getTime() || 0)
-    );
-    rest.sort(
+    
+    // Sort all messages chronologically by creation time
+    arr.sort(
       (a, b) =>
         (new Date(a.created_at).getTime() || 0) -
         (new Date(b.created_at).getTime() || 0)
     );
 
-    return [...announcements, ...rest];
+    return arr;
   }, [messages]);
 
   /* ---------------- send message (with optional image upload) ----------------
@@ -473,6 +472,7 @@ const Chats: React.FC = () => {
           profileUrl={profileUrl ?? ""}
           name={name ?? "Unknown"}
           recipientId={currentUserId}
+          chatId={chatId}
         />
 
         <FlatList
@@ -589,6 +589,102 @@ export const MessageBubble: React.FC<{
 }> = ({ item, currentUserId, profileUrl, index = 0 }) => {
   const isMe = item.userId === currentUserId;
   const { user } = useUserStore();
+
+  // Handle call history display (WhatsApp style)
+  //@ts-ignore
+  if (item.type === "call" || item.type === "video-call" || item.content?.toLowerCase().includes("call")) {
+    //@ts-ignore
+    const isVideoCall = item.type === "video-call" || item.content?.toLowerCase().includes("video");
+    const isMissedCall = item.content?.toLowerCase().includes("missed");
+    const isIncoming = item.content?.toLowerCase().includes("incoming");
+    const isOutgoing = item.content?.toLowerCase().includes("outgoing");
+
+    return (
+      <Animated.View
+        entering={FadeIn.duration(400).delay(index * 50)}
+        style={styles.callHistoryContainer}
+      >
+        {/* Avatar */}
+        <Image
+          source={
+            !isMe && profileUrl && user?.profile_picture?.url
+              ? { uri: generateURL({ url: profileUrl }) }
+              : isMe && user?.profile_picture?.url
+              ? { uri: generateURL({ url: user.profile_picture.url }) }
+              : DEFAULT_USER_IMAGE
+          }
+          style={styles.callAvatar}
+        />
+
+        {/* Call Info */}
+        <View style={styles.callInfo}>
+          <View style={styles.callTitleRow}>
+            {isVideoCall ? (
+              <VideoCircle size={18} color={isMissedCall ? "#ff3b30" : COLORS.primary} variant="Bold" />
+            ) : (
+              <Call size={18} color={isMissedCall ? "#ff3b30" : COLORS.primary} variant="Bold" />
+            )}
+            <ThemedText
+              fontSize={15}
+              fontWeight="600"
+              color={isMissedCall ? "#ff3b30" : "#000"}
+            >
+              {isVideoCall ? "Video call" : "Voice call"}
+            </ThemedText>
+          </View>
+
+          <View style={styles.callStatusRow}>
+            {isMissedCall ? (
+              <>
+                <CallSlash size={14} color="#ff3b30" />
+                <ThemedText fontSize={13} color="#ff3b30">
+                  Missed call
+                </ThemedText>
+              </>
+            ) : isIncoming ? (
+              <>
+                <CallReceived size={14} color="#34c759" />
+                <ThemedText fontSize={13} color="#666">
+                  Incoming
+                </ThemedText>
+              </>
+            ) : isOutgoing ? (
+              <>
+                <CallCalling size={14} color="#666" />
+                <ThemedText fontSize={13} color="#666">
+                  Outgoing
+                </ThemedText>
+              </>
+            ) : null}
+
+            {item.created_at && (
+              <>
+                <View style={styles.callDot} />
+                <ThemedText fontSize={12} color="#999">
+                  {new Date(item.created_at).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </ThemedText>
+              </>
+            )}
+          </View>
+        </View>
+
+        {/* Call Icon Button */}
+        <TouchableOpacity
+          style={styles.callIconButton}
+          accessibilityLabel={isVideoCall ? "Make video call" : "Make voice call"}
+        >
+          {isVideoCall ? (
+            <VideoCircle size={24} color={COLORS.primary} variant="Bold" />
+          ) : (
+            <Call size={24} color={COLORS.primary} variant="Bold" />
+          )}
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  }
 
   if (item.type === "announcement") {
     return (
@@ -914,6 +1010,51 @@ const styles = StyleSheet.create({
     backgroundColor: "#f1f1f1",
     borderBottomLeftRadius: 6,
     borderBottomRightRadius: 18,
+  },
+  // WhatsApp-style call history
+  callHistoryContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginVertical: 4,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 0.5,
+    borderColor: "#e5e5e5",
+    gap: 12,
+  },
+  callAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#ddd",
+  },
+  callInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  callTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  callStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  callDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: "#999",
+    marginHorizontal: 2,
+  },
+  callIconButton: {
+    padding: 8,
+    borderRadius: 24,
+    backgroundColor: COLORS.primary + "10",
   },
 });
 
