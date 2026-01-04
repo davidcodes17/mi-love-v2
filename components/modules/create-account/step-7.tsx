@@ -143,7 +143,7 @@ const Step7 = ({
     >
       <ScrollView
         style={{
-          height: height - 100,
+          height: "100%",
         }}
         // showsVerticalScrollIndicator={false}
         // contentContainerStyle={{ paddingBottom: 20 }}

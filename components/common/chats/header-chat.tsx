@@ -43,7 +43,7 @@ export const HeaderChat = ({
 
         const socket = io(
           process.env.EXPO_PUBLIC_API_URL ||
-            "https://mi-love-api-production.up.railway.app/chat",
+          "https://mi-love-api-production.up.railway.app/chat",
           {
             transports: ["websocket"],
             extraHeaders: { Authorization: `Bearer ${token}` },
@@ -190,10 +190,24 @@ export const HeaderChat = ({
 
       {/* Right: Call & Video */}
       <ThemedView flexDirection="row" alignItems="center" gap={10}>
-        <TouchableOpacity onPress={handleCallPress}>
+        {/* <TouchableOpacity onPress={handleCallPress}> */}
+        <TouchableOpacity onPress={() => {
+          toast.show({
+            title: "Available soon in v2",
+            type: "error",
+            duration: 2000,
+          });
+        }}>
           <Call color={COLORS.primary} size={28} variant="Broken" />
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleCallPress}>
+        {/* <TouchableOpacity onPress={handleCallPress}> */}
+        <TouchableOpacity onPress={() => {
+          toast.show({
+            title: "Available soon in v2",
+            type: "error",
+            duration: 2000,
+          });
+        }}>
           <Video color={COLORS.primary} size={28} variant="Broken" />
         </TouchableOpacity>
       </ThemedView>

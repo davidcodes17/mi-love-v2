@@ -9,7 +9,7 @@ import {
 import React, { useEffect, useState } from "react";
 import ThemedView, { ThemedText } from "../ui/themed-view";
 import { COLORS } from "@/config/theme";
-import { Heart } from "iconsax-react-native";
+import { AddCircle, Heart, LogoutCurve } from "iconsax-react-native";
 import { LikesResponse, PostProps, PostUser } from "@/types/post.types";
 import { generateURL } from "@/utils/image-utils.utils";
 import { useGetProfile } from "@/hooks/auth-hooks.hooks";
@@ -255,10 +255,10 @@ const Post: React.FC<PostProps> = ({ post }) => {
                   profileImageLoading || !post?.user?.profile_picture?.url
                     ? require("@/assets/user.png")
                     : {
-                        uri: generateURL({
-                          url: post?.user?.profile_picture?.url,
-                        }),
-                      }
+                      uri: generateURL({
+                        url: post?.user?.profile_picture?.url,
+                      }),
+                    }
                 }
                 style={{
                   width: 50,
@@ -285,50 +285,32 @@ const Post: React.FC<PostProps> = ({ post }) => {
             {user?.email !== post?.user?.email &&
               (isFriend ? (
                 <TouchableOpacity onPress={onUnfriend}>
-                  <ThemedText
-                    backgroundColor={COLORS.primary}
-                    color="#fff"
-                    padding={7.5}
-                    borderRadius={200}
-                    fontSize={12}
-                    paddingHorizontal={15}
-                  >
-                    Unfriend
-                  </ThemedText>
+                  <LogoutCurve color="#fff" size={24} />
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity onPress={onAddFriend}>
-                  <ThemedText
-                    backgroundColor={COLORS.primary}
-                    color="#fff"
-                    padding={7.5}
-                    borderRadius={200}
-                    fontSize={12}
-                    paddingHorizontal={15}
-                  >
-                    Add Friend
-                  </ThemedText>
+                  <AddCircle color="#fff" size={24} />
                 </TouchableOpacity>
               ))}
 
             {/* Like button */}
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={handleLike}
               disabled={isLiking}
               activeOpacity={0.7}
             >
               <ThemedView
                 borderColor={"#fff"}
-                borderWidth={0.5}
+                borderWidth={1}
                 padding={5}
                 borderRadius={200}
                 flexDirection="row"
                 alignItems="center"
-                gap={5}
+                gap={10}
                 opacity={isLiking ? 0.6 : 1}
               >
                 <Heart
-                  size={18}
+                  size={15}
                   color={"#fff"}
                   variant={liked ? "Bold" : "Outline"}
                 />
