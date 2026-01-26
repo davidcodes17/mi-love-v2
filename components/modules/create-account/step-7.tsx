@@ -74,23 +74,41 @@ const Step7 = ({
 
   // Image picker handler
   const pickImage = async () => {
-    const permissionResult =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissionResult.granted) {
-      alert("Permission to access gallery is required!");
-      return;
+    try {
+      // Check if permission is already granted
+      const permissionStatus = await ImagePicker.getMediaLibraryPermissionsAsync();
+
+      let finalStatus = permissionStatus.status;
+
+      // Request permission if not granted
+      if (finalStatus !== "granted") {
+        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        finalStatus = permissionResult.status;
+      }
+
+      // Handle permission denial
+      if (finalStatus !== "granted") {
+        toast.error("Permission to access gallery is required!");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setLocalImage(result.assets[0].uri);
+        // handleChange("profileImage")(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error("Image picker error:", error);
+      toast.error("Error selecting image. Please try again.");
+    } finally {
+      imageBottomSheetRef.current?.dismiss();
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      setLocalImage(result.assets[0].uri);
-      // handleChange("profileImage")(result.assets[0].uri);
-    }
-    imageBottomSheetRef.current?.dismiss();
   };
 
   // Date picker handler
@@ -145,8 +163,8 @@ const Step7 = ({
         style={{
           height: "100%",
         }}
-        // showsVerticalScrollIndicator={false}
-        // contentContainerStyle={{ paddingBottom: 20 }}
+      // showsVerticalScrollIndicator={false}
+      // contentContainerStyle={{ paddingBottom: 20 }}
       >
         <ThemedView>
           <ThemedText marginTop={20} fontSize={32} weight="bold">
@@ -209,7 +227,7 @@ const Step7 = ({
               <ThemedText
                 fontSize={16}
                 color={COLORS.primary}
-                weight="600"
+                weight="medium"
                 marginTop={16}
               >
                 {localImage ? "Change Photo" : "Tap to Add Photo"}
@@ -228,10 +246,10 @@ const Step7 = ({
 
           {/* Gender Picker */}
           <ThemedView marginTop={20}>
-            <ThemedText fontSize={16} weight="600" marginBottom={8}>
+            <ThemedText fontSize={16} weight="medium" marginBottom={8}>
               Gender
             </ThemedText>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={handleGenderPresentModalPress}
               activeOpacity={0.7}
             >
@@ -256,10 +274,10 @@ const Step7 = ({
                   <Profile color={values.gender ? COLORS.primary : "#999"} size={22} variant="Bold" />
                 </View>
                 <ThemedView flex={1}>
-                  <ThemedText fontSize={15} weight={values.gender ? "600" : "400"} color={values.gender ? "#000" : "#999"}>
+                  <ThemedText fontSize={15} weight={values.gender ? "medium" : "regular"} color={values.gender ? "#000" : "#999"}>
                     {values.gender
                       ? values.gender.charAt(0).toUpperCase() +
-                        values.gender.slice(1)
+                      values.gender.slice(1)
                       : "Select your gender"}
                   </ThemedText>
                 </ThemedView>
@@ -274,7 +292,7 @@ const Step7 = ({
 
           {/* Date of Birth Picker */}
           <ThemedView marginTop={16}>
-            <ThemedText fontSize={16} weight="600" marginBottom={8}>
+            <ThemedText fontSize={16} weight="medium" marginBottom={8}>
               Date of Birth
             </ThemedText>
             <TouchableOpacity
@@ -302,7 +320,7 @@ const Step7 = ({
                   <Calendar color={values.dob ? COLORS.primary : "#999"} size={22} variant="Bold" />
                 </View>
                 <ThemedView flex={1}>
-                  <ThemedText fontSize={15} weight={values.dob ? "600" : "400"} color={values.dob ? "#000" : "#999"}>
+                  <ThemedText fontSize={15} weight={values.dob ? "medium" : "regular"} color={values.dob ? "#000" : "#999"}>
                     {values.dob ? values.dob : "Select your date of birth"}
                   </ThemedText>
                 </ThemedView>
@@ -330,9 +348,9 @@ const Step7 = ({
               text={isLast ? "Submit" : "Next"}
               mode="fill"
               disabled={!values.profileImage || !values.gender || !values.dob}
-              style={{ 
+              style={{
                 borderRadius: 100,
-                opacity: (!values.profileImage || !values.gender || !values.dob) ? 0.5 : 1 
+                opacity: (!values.profileImage || !values.gender || !values.dob) ? 0.5 : 1
               }}
             />
           </ThemedView>

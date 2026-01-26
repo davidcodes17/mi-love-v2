@@ -97,23 +97,38 @@ const EditAccount = () => {
   };
 
   const pickImage = async () => {
-    const permissionResult =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissionResult.granted) {
-      toast.error("Permission to access gallery is required!");
-      return;
-    }
+    try {
+      // Check if permission is already granted
+      const permissionStatus = await ImagePicker.getMediaLibraryPermissionsAsync();
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: false,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+      let finalStatus = permissionStatus.status;
 
-    if (!result.canceled && result.assets?.length > 0) {
-      setImages([result.assets[0].uri]);
+      // Request permission if not granted
+      if (finalStatus !== "granted") {
+        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        finalStatus = permissionResult.status;
+      }
+
+      // Handle permission denial
+      if (finalStatus !== "granted") {
+        toast.error("Permission to access gallery is required!");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: false,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets?.length > 0) {
+        setImages([result.assets[0].uri]);
+      }
+    } catch (error) {
+      console.error("Image picker error:", error);
+      toast.error("Error selecting image. Please try again.");
     }
   };
 
@@ -239,8 +254,8 @@ const EditAccount = () => {
     images.length > 0
       ? { uri: images[0] }
       : profile?.profile_picture?.url
-      ? { uri: generateURL({ url: profile.profile_picture.url }) }
-      : require("@/assets/user.png");
+        ? { uri: generateURL({ url: profile.profile_picture.url }) }
+        : require("@/assets/user.png");
 
   // Common countries list
   const countries = [
@@ -255,7 +270,7 @@ const EditAccount = () => {
   ];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#f7f8fa", paddingTop : 50 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#f7f8fa", paddingTop: 50 }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}

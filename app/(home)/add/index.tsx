@@ -43,21 +43,38 @@ export default function Page() {
   const remainingChars = maxContentLength - content.length;
 
   const pickImage = async () => {
-    const permissionResult =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissionResult.granted) {
-      toast.error("Permission to access gallery is required!");
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      allowsEditing: false,
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      const uris = result.assets.map((a) => a.uri);
-      setImages((prev) => [...prev, ...uris]);
+    try {
+      // Check if permission is already granted
+      const permissionStatus = await ImagePicker.getMediaLibraryPermissionsAsync();
+
+      let finalStatus = permissionStatus.status;
+
+      // Request permission if not granted
+      if (finalStatus !== "granted") {
+        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        finalStatus = permissionResult.status;
+      }
+
+      // Handle permission denial
+      if (finalStatus !== "granted") {
+        toast.error("Permission to access gallery is required!");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        allowsEditing: false,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const uris = result.assets.map((a) => a.uri);
+        setImages((prev) => [...prev, ...uris]);
+      }
+    } catch (error) {
+      console.error("Image picker error:", error);
+      toast.error("Error selecting image. Please try again.");
     }
   };
 
@@ -141,8 +158,7 @@ export default function Page() {
         }, 1000);
       } else {
         toast.error(
-          `Failed to create post: ${
-            response?.message || "Something went wrong. Please try again."
+          `Failed to create post: ${response?.message || "Something went wrong. Please try again."
           }`
         );
       }
@@ -211,8 +227,8 @@ export default function Page() {
             source={
               user?.profile_picture?.url
                 ? {
-                    uri: generateURL({ url: user.profile_picture.url }),
-                  }
+                  uri: generateURL({ url: user.profile_picture.url }),
+                }
                 : require("@/assets/user.png")
             }
             defaultSource={require("@/assets/user.png")}
@@ -223,7 +239,7 @@ export default function Page() {
               borderWidth: 2,
               borderColor: COLORS.primary,
             }}
-            onError={() => {}}
+            onError={() => { }}
           />
           <ThemedView flex={1}>
             <ThemedText weight="bold" fontSize={16}>

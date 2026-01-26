@@ -197,7 +197,7 @@ const Chats: React.FC = () => {
 
         const socket = io(
           process.env.EXPO_PUBLIC_API_URL ||
-            "https://mi-love-api-production.up.railway.app/chat",
+          "https://mi-love-api-production.up.railway.app/chat",
           {
             transports: ["websocket"],
             extraHeaders: { Authorization: `Bearer ${token}` },
@@ -279,7 +279,7 @@ const Chats: React.FC = () => {
   */
   const sortedMessages = useMemo(() => {
     const arr = [...messages];
-    
+
     // Sort all messages chronologically by creation time
     arr.sort(
       (a, b) =>
@@ -605,8 +605,8 @@ export const MessageBubble: React.FC<{
             !isMe && profileUrl && user?.profile_picture?.url
               ? { uri: generateURL({ url: profileUrl }) }
               : isMe && user?.profile_picture?.url
-              ? { uri: generateURL({ url: user.profile_picture.url }) }
-              : DEFAULT_USER_IMAGE
+                ? { uri: generateURL({ url: user.profile_picture.url }) }
+                : DEFAULT_USER_IMAGE
           }
           style={styles.callAvatar}
         />
@@ -722,7 +722,7 @@ export const MessageBubble: React.FC<{
                 : DEFAULT_USER_IMAGE
             }
             defaultSource={DEFAULT_USER_IMAGE}
-            onError={() => {}}
+            onError={() => { }}
             style={styles.avatar}
           />
         </Animated.View>
@@ -791,9 +791,19 @@ const ChatInput: React.FC<{
 
   const pickImage = async () => {
     try {
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
+      // Check if permission is already granted
+      const permissionStatus = await ImagePicker.getMediaLibraryPermissionsAsync();
+
+      let finalStatus = permissionStatus.status;
+
+      // Request permission if not granted
+      if (finalStatus !== "granted") {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        finalStatus = status;
+      }
+
+      // Handle permission denial
+      if (finalStatus !== "granted") {
         toast.show({
           title: "Permission denied — allow gallery access to upload an image.",
           type: "error",
