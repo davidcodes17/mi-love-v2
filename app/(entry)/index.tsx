@@ -55,7 +55,7 @@ const Onboarding = () => {
     const checkAuth = async () => {
       try {
         const token = await AsyncStorage.getItem("token");
-        
+
         if (!token) {
           // No token, show onboarding
           setCheckingAuth(false);
@@ -65,7 +65,7 @@ const Onboarding = () => {
         // Token exists, validate it by fetching profile
         try {
           const profileData = await useGetProfile();
-          
+
           if (profileData?.data && !profileData?.error) {
             // Token is valid, set user data and navigate to home
             setProfile(profileData.data);
@@ -81,7 +81,7 @@ const Onboarding = () => {
         } catch (profileError: any) {
           // Profile fetch failed (token invalid or expired)
           console.log("Token validation failed:", profileError);
-          
+
           // Clear invalid token
           await AsyncStorage.removeItem("token");
           setCheckingAuth(false);
@@ -115,10 +115,10 @@ const Onboarding = () => {
   }
 
   return (
-    <SafeAreaView style={[globalStyles.wrapper, { flex: 1, paddingTop : 40 }]}>
+    <SafeAreaView style={[globalStyles.wrapper, { flex: 1, paddingTop: 40 }]}>
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingBottom : 40 }}
-        style={{ flex: 1 }} 
+        contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingBottom: 40 }}
+        style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
       >
         <View style={{ flex: 1 }}>
@@ -131,7 +131,7 @@ const Onboarding = () => {
             >
               <Image
                 source={require("@/assets/images/onboarding/icon.png")}
-                style={{ width: 50, height: 50, alignSelf: "center", borderRadius : 200 }}
+                style={{ width: 50, height: 50, alignSelf: "center", borderRadius: 200 }}
               />
               <ThemedText weight="medium" fontSize={25}>
                 Mi Love
@@ -146,7 +146,7 @@ const Onboarding = () => {
                 {
                   width: "100%",
                   height: 400,
-                  borderRadius : 30,
+                  borderRadius: 30,
                   alignSelf: "center",
                 },
                 imageStyle,
