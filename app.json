@@ -15,6 +15,8 @@
         "NSLocationWhenInUseUsageDescription": "We need your location to show nearby services.",
         "NSCameraUsageDescription": "This app needs access to your camera to make video calls",
         "NSMicrophoneUsageDescription": "This app needs access to your microphone to make calls",
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photos to allow you to upload profile pictures.",
+        "NSPhotoLibraryAddUsageDescription": "This app needs access to save photos to your library.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "bitcode": false
@@ -23,6 +25,9 @@
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_MEDIA_LOCATION",
         "BLUETOOTH",
         "android.permission.BLUETOOTH",
         "android.permission.BLUETOOTH_CONNECT",
@@ -33,6 +38,8 @@
         "android.permission.INTERNET",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.SYSTEM_ALERT_WINDOW"
       ],
       "adaptiveIcon": {
@@ -67,7 +74,13 @@
       ],
       "expo-font",
       "expo-web-browser",
-      "expo-build-properties"
+      "expo-build-properties",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them with your friends."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

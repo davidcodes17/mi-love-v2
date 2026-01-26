@@ -29,6 +29,10 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { registerForPushNotificationsAsync } from "@/utils/fcm-token.utils";
+import {
+  requestCameraPermission,
+  requestImageLibraryPermission,
+} from "@/utils/permissions-utils.utils";
 
 const loginSchema = Yup.object({
   email: Yup.string().email("Invalid email").required("Email is required"),
@@ -64,13 +68,13 @@ const LoginScreen = () => {
     const checkAuth = async () => {
       try {
         const token = await AsyncStorage.getItem("token");
-        
+
         // If user is already in store, they're logged in
         if (token && user) {
           router.replace("/home");
           return;
         }
-        
+
         // If token exists but user not in store, validate token
         if (token && !user) {
           try {
@@ -98,19 +102,28 @@ const LoginScreen = () => {
   }, []);
 
   useEffect(() => {
-    // Register for push notifications
-    registerForPushNotificationsAsync().then((token) => {
+    // Register for push notifications and request other permissions
+    const requestInitialPermissions = async () => {
+      // Push notifications
+      const token = await registerForPushNotificationsAsync();
       if (token) {
         setExpoPushToken(token);
       }
-    });
+
+      // Camera and Photo Library permissions
+      // We don't necessarily need to block on these, just trigger them
+      await requestCameraPermission(false);
+      await requestImageLibraryPermission(false);
+    };
+
+    requestInitialPermissions();
 
     if (Platform.OS === "android") {
       Notifications.getNotificationChannelsAsync().then((value) =>
         setChannels(value ?? [])
       );
     }
-    
+
     const notificationListener = Notifications.addNotificationReceivedListener(
       (notification) => {
         setNotification(notification);
@@ -144,7 +157,7 @@ const LoginScreen = () => {
         console.log(response);
         // Save token
         await AsyncStorage.setItem("token", response?.access_token);
-        
+
         // Fetch and set user profile for seamless experience
         try {
           const profileData = await useGetProfile();
@@ -155,7 +168,7 @@ const LoginScreen = () => {
           console.error("Failed to fetch profile after login:", profileErr);
           // Continue anyway, profile will be fetched on home screen
         }
-        
+
         // Send FCM token after authentication
         if (expoPushToken) {
           try {
@@ -178,7 +191,7 @@ const LoginScreen = () => {
             }
           });
         }
-        
+
         router.replace("/home");
         return;
       } else {
