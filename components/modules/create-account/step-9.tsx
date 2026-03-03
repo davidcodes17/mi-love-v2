@@ -167,9 +167,18 @@ const Step9 = ({
         onNext();
       } else {
         setLoading(false);
+        // some error responses may be plain strings, objects with message, or nested
+        let errorMessage = "Account Creation Failed";
+        if (typeof response === "string") {
+          errorMessage = response;
+        } else if (response?.message) {
+          errorMessage = response.message;
+        } else if (response?.error) {
+          errorMessage = response.error;
+        }
         toast.show({
           type: "error",
-          title: response?.message || "Account Creation Failed",
+          title: errorMessage,
           position: "bottom",
           visibilityTime: 4000,
         });

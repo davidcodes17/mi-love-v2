@@ -124,7 +124,7 @@ const Step7 = ({
     handleChange("gender")(gender);
     genderBottomSheetRef.current?.dismiss();
   };
-  const height = Dimensions.get("window").height;
+  // removed unused height constant since we use flex styling below
 
   const uploadImage = async () => {
     if (!localImage) {
@@ -154,17 +154,20 @@ const Step7 = ({
     }
   };
 
+
   return (
     <KeyboardAvoidingView
+      style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
     >
       <ScrollView
         style={{
-          height: "100%",
+          flex: 1,
         }}
-      // showsVerticalScrollIndicator={false}
-      // contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={{ flexGrow: 1 }}
+        // showsVerticalScrollIndicator={false}
+        // contentContainerStyle={{ paddingBottom: 20 }}
       >
         <ThemedView>
           <ThemedText marginTop={20} fontSize={32} weight="bold">
@@ -232,7 +235,8 @@ const Step7 = ({
               >
                 {localImage ? "Change Photo" : "Tap to Add Photo"}
               </ThemedText>
-              {localImage && (
+              {/* reserve space for upload button to avoid shifting next button */}
+          {localImage ? (
                 <NativeButton
                   text={loading ? "Uploading..." : "Upload Photo"}
                   onPress={uploadImage}
@@ -240,6 +244,8 @@ const Step7 = ({
                   style={{ marginTop: 12, paddingHorizontal: 30, borderRadius: 25 }}
                   mode="fill"
                 />
+              ) : (
+                <View style={{ height: 50, marginTop: 12 }} />
               )}
             </TouchableOpacity>
           </ThemedView>
@@ -347,10 +353,14 @@ const Step7 = ({
               }}
               text={isLast ? "Submit" : "Next"}
               mode="fill"
-              disabled={!values.profileImage || !values.gender || !values.dob}
+              // disable while uploading or if any required value is missing
+              disabled={loading || !values.profileImage || !values.gender || !values.dob}
               style={{
                 borderRadius: 100,
-                opacity: (!values.profileImage || !values.gender || !values.dob) ? 0.5 : 1
+                // keep opacity consistent to prevent flicker when disabled changes
+                opacity: loading || !values.profileImage || !values.gender || !values.dob ? 0.5 : 1,
+                // make width fixed so layout doesn't shift when state changes
+                width: "100%",
               }}
             />
           </ThemedView>

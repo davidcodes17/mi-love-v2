@@ -98,7 +98,8 @@ export const createAccountService = async ({ data }: { data: UserProfile }) => {
     return response.data;
   } catch (error: any) {
     console.log(error);
-    return error?.response?.data?.error;
+    // return the full response body so callers can access message/title/etc
+    return error?.response?.data || { message: "An unknown error occurred" };
   }
 };
 
