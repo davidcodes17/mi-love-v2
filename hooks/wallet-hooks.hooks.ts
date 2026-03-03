@@ -5,6 +5,7 @@ import {
   generatePaymentLink,
   getWalletService,
   sendGift,
+  claimRewardService,
 } from "@/services/wallet-service.service";
 import { GeneratePaymentLinkPayLoad, SendGiftPayload } from "@/types/wallet.types";
 
@@ -38,5 +39,10 @@ export const useSendGift = async ({
   data: SendGiftPayload;
 }) => {
   const response = await sendGift({ data });
+  return response;
+};
+
+export const useClaimReward = async ({ token }: { token: string }) => {
+  const response = await claimRewardService({ token });
   return response;
 };

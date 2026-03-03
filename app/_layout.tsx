@@ -27,6 +27,7 @@ import { COLORS } from "@/config/theme";
 import { useUserStore } from "@/store/store";
 import LoadingScreen from "@/components/common/loading-screen";
 import { io, Socket } from "socket.io-client";
+import { useNotificationListeners, useDeepLinkHandler } from "@/hooks/notification-hooks.hooks";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -289,6 +290,16 @@ function IncomingCallListener() {
   return null;
 }
 
+function NotificationListenersComponent() {
+  // Set up notification listeners for foreground/background notifications
+  useNotificationListeners();
+  
+  // Set up deep link handler for reward claims and navigation
+  useDeepLinkHandler();
+
+  return null;
+}
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [loaded] = useFonts({
@@ -322,6 +333,7 @@ export default function RootLayout() {
           <ProtectedRouteWrapper>
             <CallProvider>
               <IncomingCallListener />
+              <NotificationListenersComponent />
               <Stack>
                 <Stack.Screen name="(home)" options={{ headerShown: false }} />
                 <Stack.Screen

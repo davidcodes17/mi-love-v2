@@ -70,3 +70,15 @@ export const sendGift = async ({
     return error?.response?.data;
   }
 };
+/**
+ * Claim a bonus reward from an inactive user re-engagement link
+ */
+export const claimRewardService = async ({ token }: { token: string }) => {
+  try {
+    const response = await apiSecured.get(`/wallet/claim-reward/${token}`);
+    return response.data;
+  } catch (error: any) {
+    console.log("Error claiming reward:", error);
+    return error?.response?.data || { error: "Failed to claim reward" };
+  }
+};
