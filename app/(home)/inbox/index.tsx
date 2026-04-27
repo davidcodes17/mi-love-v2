@@ -78,7 +78,7 @@ export default function Page() {
         }
 
         // Use the same base URL as the API
-        const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://mi-love-api-production.up.railway.app';
+        const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://1b67jdhr-9999.uks1.devtunnels.ms';
         
         console.log("🔌 Inbox: Attempting socket connection to:", API_BASE_URL);
 

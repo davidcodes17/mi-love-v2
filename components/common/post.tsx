@@ -53,8 +53,9 @@ const Post: React.FC<PostProps> = ({ post }) => {
       : post.content;
 
   const windowWidth = Dimensions.get("window").width;
-  const horizontalPadding = 20; // Matches ThemedView paddingHorizontal
+  const horizontalPadding = 20;
   const galleryWidth = windowWidth - horizontalPadding * 2;
+  const cardRadius = 20;
 
   useEffect(() => {
     const fetchUserAndFriends = async () => {
@@ -150,13 +151,25 @@ const Post: React.FC<PostProps> = ({ post }) => {
   };
 
   return (
-    <ThemedView position="relative" marginBottom={20}>
+    <ThemedView
+      position="relative"
+      backgroundColor="#fff"
+      borderRadius={cardRadius}
+      overflow="hidden"
+      style={{
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 4,
+      }}
+    >
       {/* Image Gallery */}
       <View
         style={{
           width: galleryWidth,
-          height: 400,
-          borderRadius: 20,
+          height: 380,
+          borderRadius: cardRadius,
           overflow: "hidden",
           alignSelf: "center",
         }}
@@ -178,7 +191,7 @@ const Post: React.FC<PostProps> = ({ post }) => {
                     ? require("@/assets/post.jpg")
                     : { uri: generateURL({ url: file.url }) }
                 }
-                style={{ width: galleryWidth, height: 400 }}
+                style={{ width: galleryWidth, height: 380 }}
                 onLoadEnd={() => setMainImageLoading(false)}
                 resizeMode="cover"
               />
@@ -186,7 +199,7 @@ const Post: React.FC<PostProps> = ({ post }) => {
           ) : (
             <Image
               source={require("@/assets/user.png")}
-              style={{ width: galleryWidth, height: 400 }}
+              style={{ width: galleryWidth, height: 380 }}
               resizeMode="cover"
             />
           )}
@@ -225,10 +238,12 @@ const Post: React.FC<PostProps> = ({ post }) => {
         position="absolute"
         bottom={0}
         left={0}
-        width={"100%"}
-        backgroundColor={"rgba(0, 0, 0, 0.7)"}
-        borderRadius={20}
+        right={0}
+        backgroundColor={"rgba(0, 0, 0, 0.75)"}
+        borderBottomLeftRadius={cardRadius}
+        borderBottomRightRadius={cardRadius}
         padding={20}
+        paddingVertical={16}
       >
         <ThemedView
           flexDirection="row"

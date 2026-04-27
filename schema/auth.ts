@@ -28,9 +28,9 @@ const authSchema = [
   }),
   // Step 5: Emergency Contact
   Yup.object({
-    emergencyContact: Yup.string().required(
-      "Please provide an emergency contact number"
-    ),
+    emergencyContact: Yup.string()
+      .email("Please provide a valid emergency contact email")
+      .required("Please provide an emergency contact email"),
   }),
   // Step 6: Password
   Yup.object({

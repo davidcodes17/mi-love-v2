@@ -51,9 +51,10 @@ export const updateProfileService = async ({
 export const initiatePanicButton = async ({ data }: { data: PanicButtonPayload }) => {
   try {
     const response = await apiSecured.post("/emergencies/panic", data);
-    return response.data;
+    return { success: true, data: response.data };
   } catch (error: any) {
     console.log(error);
-    return error?.response?.data?.error;
+    const responseData = error?.response?.data;
+    return { success: false, data: responseData, status: error?.response?.status };
   }
 };

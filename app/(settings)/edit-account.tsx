@@ -457,12 +457,13 @@ const EditAccount = () => {
               keyboardType="phone-pad"
             />
             <InputField
-              label="Emergency Contact"
+              label="Emergency Contact Email"
               icon={<Call size={20} color={COLORS.primary} />}
-              placeholder="Enter emergency contact"
+              placeholder="Enter emergency contact email"
               value={form.emergency_contact}
               onChangeText={(v) => handleChange("emergency_contact", v)}
-              keyboardType="phone-pad"
+              keyboardType="email-address"
+              autoCapitalize="none"
             />
           </ThemedView>
 

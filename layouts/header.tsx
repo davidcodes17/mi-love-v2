@@ -32,6 +32,7 @@ const Header = () => {
       // Call API hook
       const response = await useInitiatePanicButton({
         data: {
+          phone_number: undefined, // will fall back to user.emergency_contact on backend
           latitude,
           longitude,
           reason: "Help Me",
@@ -40,15 +41,33 @@ const Header = () => {
 
       console.log("Panic button response:", response);
 
-      // ✅ Show confirmation modal
-      Alert.alert(
-        "Panic Request Sent",
-        "Your panic alert has been sent successfully. Help is on the way!",
-        [{ text: "OK" }]
-      );
-    } catch (error) {
-      console.error("Panic button error:", error);
-      Alert.alert("Error", "Failed to send panic request. Please try again.");
+      if (response?.success) {
+        Alert.alert(
+          "Panic Alert Sent",
+          response.data?.message ?? "Your panic alert email has been sent to your registered email address.",
+          [{ text: "OK" }]
+        );
+      } else if (
+        response?.data?.message === "Panic Alert not sent due to missing registered email"
+      ) {
+        Alert.alert(
+          "Registered Email Missing",
+          "We could not send your panic alert because your account does not have a registered email. Please update your email and try again.",
+          [{ text: "OK" }]
+        );
+      } else if (response?.status === 502) {
+        Alert.alert(
+          "Panic Alert Failed",
+          "Failed to deliver your panic alert email. Please try again or contact support.",
+          [{ text: "Retry", onPress: handlePanicButton }, { text: "Cancel" }]
+        );
+      } else {
+        Alert.alert(
+          "Error",
+          response?.data?.message ?? "Failed to send panic alert. Please try again.",
+          [{ text: "OK" }]
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -102,7 +121,7 @@ const Header = () => {
               />
             </ThemedView>
             <ThemedText paddingTop={2} color={COLORS.primary} fontSize={12}>
-              {loading ? "Sending..." : "Panic Button"}
+            {loading ? "Sending alert..." : "Panic Button"}
             </ThemedText>
           </TouchableOpacity>
         </ThemedView>

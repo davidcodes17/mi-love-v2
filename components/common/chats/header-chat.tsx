@@ -43,7 +43,7 @@ export const HeaderChat = ({
 
         const socket = io(
           process.env.EXPO_PUBLIC_API_URL ||
-          "https://mi-love-api-production.up.railway.app/chat",
+          "https://1b67jdhr-9999.uks1.devtunnels.ms/chat",
           {
             transports: ["websocket"],
             extraHeaders: { Authorization: `Bearer ${token}` },

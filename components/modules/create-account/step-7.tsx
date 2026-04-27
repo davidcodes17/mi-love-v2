@@ -1,6 +1,5 @@
 import React, { useState, useRef, useCallback, useMemo } from "react";
 import {
-  ScrollView,
   StyleSheet,
   Image,
   TouchableOpacity,
@@ -161,15 +160,7 @@ const Step7 = ({
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
     >
-      <ScrollView
-        style={{
-          flex: 1,
-        }}
-        contentContainerStyle={{ flexGrow: 1 }}
-        // showsVerticalScrollIndicator={false}
-        // contentContainerStyle={{ paddingBottom: 20 }}
-      >
-        <ThemedView>
+      <ThemedView>
           <ThemedText marginTop={20} fontSize={32} weight="bold">
             Let's get to know you better! ✨
           </ThemedText>
@@ -364,8 +355,7 @@ const Step7 = ({
               }}
             />
           </ThemedView>
-        </ThemedView>
-      </ScrollView>
+      </ThemedView>
 
       {/* Gender Selection BottomSheet */}
       <BottomSheetModal

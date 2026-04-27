@@ -1,5 +1,12 @@
-import React, { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, View, StatusBar, TouchableOpacity } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ScrollView,
+  StyleSheet,
+  View,
+  StatusBar,
+  TouchableOpacity,
+  BackHandler,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Step1 from "@/components/modules/create-account/step-1";
 import Step2 from "@/components/modules/create-account/step-2";
@@ -17,7 +24,7 @@ import Step9 from "@/components/modules/create-account/step-9";
 import Step10 from "@/components/modules/create-account/step-10";
 import { COLORS } from "@/config/theme";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useNavigation } from "expo-router";
 
 const steps = [Step1, Step2, Step3, Step4, Step5, Step6, Step7, Step8, Step9, Step10];
 const stepLabels = [
@@ -54,8 +61,13 @@ const initialValues = {
 
 const CreateAccount = () => {
   const [step, setStep] = useState(0);
+  const navigation = useNavigation();
   const StepComponent = steps[step];
   const totalSteps = steps.length;
+
+  const back = useCallback(() => {
+    setStep((s) => Math.max(s - 1, 0));
+  }, []);
 
   const progress = useMemo(() => {
     if (totalSteps <= 1) return 1;
@@ -72,6 +84,35 @@ const CreateAccount = () => {
     }
   };
 
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("beforeRemove", (e: any) => {
+      if (step === 0) return;
+
+      e.preventDefault();
+      back();
+    });
+
+    return unsubscribe;
+  }, [navigation, step, back]);
+
+  useEffect(() => {
+    const onBackPress = () => {
+      if (step > 0) {
+        back();
+        return true;
+      }
+
+      return false;
+    };
+
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      onBackPress
+    );
+
+    return () => subscription.remove();
+  }, [step, back]);
+
   const formik = useFormik({
     initialValues,
     validationSchema: authShema[step],
@@ -81,8 +122,6 @@ const CreateAccount = () => {
       setStep((s) => Math.min(s + 1, steps.length - 1));
     },
   });
-
-  const back = () => setStep((s) => Math.max(s - 1, 0));
 
   return (
     <SafeAreaView style={styles.safeArea}>

@@ -81,9 +81,11 @@ export interface EditProfilePayload {
 }
 
 export interface PanicButtonPayload {
-  reason: string;
+  phone_number?: string;
+  emergency_contact?: string;
   latitude: number;
   longitude: number;
+  reason?: string;
 }
 
 export interface AccountDeletion {

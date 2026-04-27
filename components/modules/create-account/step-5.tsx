@@ -1,10 +1,7 @@
 import React from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import globalStyles from "@/components/styles/global-styles";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import NativeButton from "@/components/ui/native-button";
-import PhoneInput from "@/components/common/phone-input";
+import InputField from "@/components/common/input-field";
 
 interface Step5Props {
   values: any;
@@ -36,17 +33,19 @@ const Step5 = ({
           Setting up extra Security
         </ThemedText>
         <ThemedText marginTop={7}>
-          Make sure the phone number you enter is registered on WhatsApp.
+          Add a valid emergency contact email address.
         </ThemedText>
       </ThemedView>
 
       <ThemedView marginTop={20}>
-        <ThemedText marginBottom={6}>Emergency Contact</ThemedText>
-        <PhoneInput
+        <InputField
+          label="Emergency Contact Email"
           value={values.emergencyContact}
           onChangeText={handleChange("emergencyContact")}
-          placeholder="Phone number"
-          defaultCountryCode="NG"
+          placeholder="name@example.com"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
           error={touched.emergencyContact && errors.emergencyContact ? errors.emergencyContact : undefined}
         />
       </ThemedView>
@@ -69,28 +68,3 @@ const Step5 = ({
 };
 
 export default Step5;
-
-const styles = StyleSheet.create({
-  phoneContainer: {
-    width: "100%",
-    height: 56,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#e0e0e0",
-    backgroundColor: "#fff",
-    paddingHorizontal: 4,
-  },
-  phoneTextContainer: {
-    borderTopRightRadius: 12,
-    borderBottomRightRadius: 12,
-    backgroundColor: "#fff",
-    paddingLeft: 8,
-  },
-  flagButton: {
-    width: 70,
-    borderRightWidth: 1,
-    borderRightColor: "#e0e0e0",
-    marginRight: 0,
-    paddingRight: 8,
-  },
-});

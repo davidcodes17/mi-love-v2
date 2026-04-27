@@ -20,6 +20,9 @@ import TextPost from "@/components/common/text-post";
 import { COLORS, TYPOGRAPHY } from "@/config/theme";
 import { Ionicons } from "@expo/vector-icons";
 
+const POST_CARD_GAP = 24;
+const LIST_PADDING_BOTTOM = 48;
+
 const Posts = forwardRef((props, ref) => {
   const [data, setData] = useState<PostsResponse>(null!);
   const [refreshing, setRefreshing] = useState(false);
@@ -77,7 +80,15 @@ const Posts = forwardRef((props, ref) => {
   );
 
   return (
-    <ThemedView marginTop={20} gap={20} flex={1}>
+    <ThemedView marginTop={24} flex={1}>
+      <ThemedText
+        fontSize={TYPOGRAPHY.lg}
+        weight="bold"
+        color="#1a1a1a"
+        marginBottom={16}
+      >
+        Posts
+      </ThemedText>
       {loading ? (
         <View style={styles.loaderContainer}>
           <ActivityIndicator size="small" color={COLORS.primary} />
@@ -86,19 +97,25 @@ const Posts = forwardRef((props, ref) => {
         <FlatList
           data={data?.posts || []}
           keyExtractor={(item: PostType) => item.id}
-          renderItem={({ item }) =>
-            item?.files?.length > 0 ? (
-              <Post post={item} />
-            ) : (
-              <TextPost post={item} />
-            )
-          }
+          renderItem={({ item }) => (
+            <View style={styles.postCardWrapper}>
+              {item?.files?.length > 0 ? (
+                <Post post={item} />
+              ) : (
+                <TextPost post={item} />
+              )}
+            </View>
+          )}
           ListEmptyComponent={renderEmptyState}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={COLORS.primary}
+            />
           }
-          contentContainerStyle={{ gap: 20, paddingBottom: 40 }}
+          contentContainerStyle={styles.listContent}
         />
       )}
     </ThemedView>
@@ -112,6 +129,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    minHeight: 120,
+  },
+  listContent: {
+    gap: POST_CARD_GAP,
+    paddingBottom: LIST_PADDING_BOTTOM,
+  },
+  postCardWrapper: {
+    marginBottom: POST_CARD_GAP,
   },
   emptyStateContainer: {
     flex: 1,
@@ -124,7 +149,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: "rgba(93, 2, 1, 0.1)",
+    backgroundColor: "rgba(212, 19, 114, 0.08)",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 24,

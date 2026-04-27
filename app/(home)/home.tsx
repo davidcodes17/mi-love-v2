@@ -5,22 +5,19 @@ import { useEffect } from "react";
 import globalStyles from "@/components/styles/global-styles";
 import Header from "@/layouts/header";
 import ThemedView from "@/components/ui/themed-view";
-import StatusSide from "@/layouts/status-section";
-import Interests from "@/layouts/interests";
 import Posts from "@/layouts/posts";
 import React, { useState, useCallback, useRef } from "react";
-import { router } from "expo-router";
 import { useGetProfile, useUserProfileStore } from "@/hooks/auth-hooks.hooks";
 import { useUserStore } from "@/store/store";
 import { registerAndSendFcmToken } from "@/utils/fcm-token.utils";
 
 export default function HomeScreen() {
-  const components = ["header", "status", "interests", "posts"];
+  const components = ["header", "posts"];
   const [refreshing, setRefreshing] = useState(false);
   const postsRef = useRef<any>(null);
   const setProfile = useUserProfileStore((state) => state.setProfile);
   const profile = useUserProfileStore((state) => state.profile);
-  const { user, updateUser, setUser } = useUserStore();
+  const { user, setUser } = useUserStore();
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -54,9 +51,9 @@ export default function HomeScreen() {
     setRefreshing(true);
 
     try {
-      await postsRef.current?.refresh();
+      await Promise.all([postsRef.current?.refresh()]);
     } catch (e) {
-      console.error("Failed to refresh posts:", e);
+      console.error("Failed to refresh:", e);
     }
 
     setRefreshing(false);
@@ -74,12 +71,6 @@ export default function HomeScreen() {
       case "header":
         Component = Header;
         break;
-        // case "status":
-        //   Component = StatusSide;
-        break;
-      // case "interests":
-      //   Component = Interests;
-      //   break;
       case "posts":
         Component = Posts;
         props = { ref: postsRef };

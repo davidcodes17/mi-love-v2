@@ -132,7 +132,7 @@ export default function ProfileScreen() {
               </ThemedView>
               <ThemedView>
                 <ThemedText textAlign="center" weight="medium" fontSize={20}>
-                  {profile?._count.my_friends || 0}
+                  {profile?._count?.my_friends || 0}
                 </ThemedText>
                 <ThemedText textAlign="center" fontSize={15} color={"#aaa"}>
                   Friends

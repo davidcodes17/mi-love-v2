@@ -40,7 +40,6 @@ const PROTECTED_ROUTES = [
   "(friends)",
   "(notifications)",
   "(search)",
-  "(status)",
 ];
 
 // Protected standalone routes (root level)
@@ -216,7 +215,7 @@ function IncomingCallListener() {
 
         const socketUrl = process.env.EXPO_PUBLIC_API_URL 
           ? `${process.env.EXPO_PUBLIC_API_URL}/chat`
-          : "https://mi-love-api-production.up.railway.app/chat";
+          : "https://1b67jdhr-9999.uks1.devtunnels.ms/chat";
 
         console.log("🔌 IncomingCallListener: Connecting to:", socketUrl);
 
@@ -336,10 +335,6 @@ export default function RootLayout() {
               <NotificationListenersComponent />
               <Stack>
                 <Stack.Screen name="(home)" options={{ headerShown: false }} />
-                <Stack.Screen
-                  name="(status)"
-                  options={{ headerShown: false }}
-                />
                 <Stack.Screen
                   name="(search)"
                   options={{ headerShown: false }}
