@@ -8,6 +8,8 @@ export interface WalletResponse {
 
 export interface GeneratePaymentLinkPayLoad {
   amount: number;
+  callbackUrl?: string;
+  provider?: "paystack" | "flutterwave";
 }
 export interface PaymentLinkResponse {
   message: string;

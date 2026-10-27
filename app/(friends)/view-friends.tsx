@@ -7,6 +7,9 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  TextInput,
+  Pressable,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
@@ -29,6 +32,7 @@ import {
   useAddFriend,
   useUnFriend,
   useGetAllFriends,
+  useBlockFriend,
 } from "@/hooks/friend-hooks.hooks";
 import { generateURL } from "@/utils/image-utils.utils";
 import { UserProfileR } from "@/types/auth.types";
@@ -49,6 +53,9 @@ const ViewFriend = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [blockModalVisible, setBlockModalVisible] = useState(false);
+  const [blockReason, setBlockReason] = useState("");
+  const [blocking, setBlocking] = useState(false);
   const { user: currentUser } = useUserStore();
 
   const fetchFriend = async () => {
@@ -62,12 +69,10 @@ const ViewFriend = () => {
       // Ensure friendData is an object, not a string
       if (typeof friendData === 'object' && friendData !== null) {
         setFriend(friendData);
-        console.log("Friend data loaded:", {
-          id: friendData?.id,
-          profilePicture: friendData?.profile_picture,
-        });
+        if (Array.isArray(friendData.posts)) {
+          setPosts(friendData.posts);
+        }
       } else {
-        console.error("Invalid friend data received:", friendData);
         setFriend(null);
       }
 
@@ -82,7 +87,6 @@ const ViewFriend = () => {
         setIsFriend(isAlreadyFriend || false);
       }
     } catch (error) {
-      console.error("Error fetching friend:", error);
       toast.error("Failed to load profile");
     } finally {
       setLoading(false);
@@ -101,9 +105,9 @@ const ViewFriend = () => {
           page: "1",
         },
       });
-      setPosts(response?.posts || []);
+      const postData = response?.posts || response?.data?.posts || response?.data;
+      setPosts(Array.isArray(postData) ? postData : []);
     } catch (error) {
-      console.error("Error fetching posts:", error);
     } finally {
       setPostsLoading(false);
     }
@@ -126,7 +130,6 @@ const ViewFriend = () => {
         toast.error(response?.message || "Failed to add friend");
       }
     } catch (error) {
-      console.error("Error adding friend:", error);
       toast.error("Unable to add friend. Please try again.");
     } finally {
       setIsFriendLoading(false);
@@ -145,7 +148,6 @@ const ViewFriend = () => {
         toast.error(response?.message || "Failed to remove friend");
       }
     } catch (error) {
-      console.error("Error removing friend:", error);
       toast.error("Unable to remove friend. Please try again.");
     } finally {
       setIsFriendLoading(false);
@@ -155,6 +157,29 @@ const ViewFriend = () => {
   const handleChat = () => {
     if (!friendId) return;
     router.push(`/(chats)/chats?userId=${friendId}`);
+  };
+
+  const handleBlock = async () => {
+    if (!friendId || !blockReason.trim()) {
+      toast.error("Please provide a reason for blocking this user.");
+      return;
+    }
+    try {
+      setBlocking(true);
+      const response = await useBlockFriend({
+        id: friendId,
+        reason: blockReason.trim(),
+      });
+      if (response?.error) {
+        toast.error(response.message || response.error);
+        return;
+      }
+      toast.success(response?.message || "User blocked.");
+      setBlockModalVisible(false);
+      router.back();
+    } finally {
+      setBlocking(false);
+    }
   };
 
   const onRefresh = async () => {
@@ -250,7 +275,10 @@ const ViewFriend = () => {
           <ThemedText weight="bold" fontSize={18}>
             {friend.username}
           </ThemedText>
-          <TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => !isOwnProfile && setBlockModalVisible(true)}
+            disabled={isOwnProfile}
+          >
             <More variant="Outline" color="#000" size={24} />
           </TouchableOpacity>
         </ThemedView>
@@ -283,12 +311,9 @@ const ViewFriend = () => {
                 }}
                 resizeMode="cover"
                 onError={(e) => {
-                  console.log("Image load error:", e.nativeEvent);
-                  console.log("Attempted URL:", friend?.profile_picture?.url);
                   setImageError(true);
                 }}
                 onLoad={() => {
-                  console.log("Image loaded successfully");
                 }}
                 defaultSource={require("@/assets/user.png")}
               />
@@ -489,7 +514,6 @@ const ViewFriend = () => {
             ) : posts.length > 0 ? (
               <ProfileImageGrid
                 posts={posts}
-                linkBase="/(home)/home"
               />
             ) : (
               <View style={styles.emptyStateContainer}>
@@ -512,6 +536,50 @@ const ViewFriend = () => {
           </ThemedView>
         </ThemedView>
       </ScrollView>
+      <Modal
+        visible={blockModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setBlockModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setBlockModalVisible(false)}
+          />
+          <View style={styles.modalCard}>
+            <ThemedText weight="bold" fontSize={20}>
+              Block {friend.first_name}
+            </ThemedText>
+            <ThemedText color="#666" marginTop={8}>
+              Tell us why you are blocking this user.
+            </ThemedText>
+            <TextInput
+              value={blockReason}
+              onChangeText={setBlockReason}
+              placeholder="Reason for blocking"
+              multiline
+              style={styles.reasonInput}
+            />
+            <ThemedView flexDirection="row" gap={10}>
+              <NativeButton
+                mode="outline"
+                text="Cancel"
+                onPress={() => setBlockModalVisible(false)}
+                style={{ flex: 1 }}
+              />
+              <NativeButton
+                mode="fill"
+                text="Block"
+                onPress={handleBlock}
+                isLoading={blocking}
+                disabled={blocking || !blockReason.trim()}
+                style={{ flex: 1 }}
+              />
+            </ThemedView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -541,5 +609,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     width: 64,
     height: 64,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 20,
+  },
+  reasonInput: {
+    minHeight: 100,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 12,
+    padding: 12,
+    marginVertical: 18,
+    textAlignVertical: "top",
   },
 });

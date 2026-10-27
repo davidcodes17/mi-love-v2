@@ -89,18 +89,25 @@ const NativeButton = (props: NativeButtonProps) => {
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: 8,
-    padding: 18,
+    minHeight: 50,
+    borderRadius: 18,
+    paddingHorizontal: 22,
+    paddingVertical: 14,
     justifyContent: "center",
     alignItems: "center",
   },
   fillButton: {
     backgroundColor: COLORS.primary,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 4,
   },
   outlineButton: {
-    borderWidth: 0.7,
+    borderWidth: 1,
     borderColor: COLORS.primary,
-    backgroundColor: "transparent",
+    backgroundColor: COLORS.surface,
   },
   textButton: {
     backgroundColor: "transparent",

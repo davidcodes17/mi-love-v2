@@ -37,7 +37,6 @@ const ChatPanicButton = () => {
         },
       });
 
-      console.log("Chat panic button response:", response);
 
       // ✅ Show confirmation modal
       Alert.alert(
@@ -46,7 +45,6 @@ const ChatPanicButton = () => {
         [{ text: "OK" }]
       );
     } catch (error) {
-      console.error("Chat panic button error:", error);
       Alert.alert("Error", "Failed to send panic request. Please try again.");
     } finally {
       setLoading(false);

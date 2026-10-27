@@ -1,26 +1,46 @@
 import ChatCompo from "@/components/common/chat-compo";
-import globalStyles from "@/components/styles/global-styles";
-import ThemedView, { ThemedText } from "@/components/ui/themed-view";
-import { COLORS } from "@/config/theme";
+import { ThemedText } from "@/components/ui/themed-view";
 import { useGetAllChats } from "@/hooks/chats.hooks";
 import { useUserStore } from "@/store/store";
 import { Chat, ChatResponse, Message as ChatMessageType } from "@/types/chat.types";
-import { Message } from "iconsax-react-native";
-import { useCallback, useEffect, useState, useRef } from "react";
-import { FlatList, ActivityIndicator, RefreshControl } from "react-native";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import {
+  FlatList,
+  ActivityIndicator,
+  RefreshControl,
+  Modal,
+  TextInput,
+  TouchableOpacity,
+  View,
+  StyleSheet,
+  Text,
+  Image,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
-import { io, Socket } from "socket.io-client";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect, router } from "expo-router";
+import type { Socket } from "socket.io-client";
+import { getChatSocket } from "@/services/chat-socket.service";
+import { createGroupChat } from "@/services/chats-service.service";
+import { useGetAllFriends } from "@/hooks/friend-hooks.hooks";
+import type { UserProfileR } from "@/types/auth.types";
+import { toast } from "@/components/lib/toast-manager";
+import { Ionicons } from "@expo/vector-icons";
+import { generateURL } from "@/utils/image-utils.utils";
+import useTheme from "@/hooks/use-theme";
 
 export default function Page() {
+  const theme = useTheme();
   const [data, setData] = useState<ChatResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const fetchChatsRef = useRef<((showMainLoader?: boolean) => Promise<void>) | null>(null);
-  const connectionErrorCountRef = useRef(0);
-  const maxConnectionAttempts = 3;
+  const [groupModalOpen, setGroupModalOpen] = useState(false);
+  const [groupName, setGroupName] = useState("");
+  const [friends, setFriends] = useState<UserProfileR[]>([]);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [query, setQuery] = useState("");
 
   const { user } = useUserStore();
 
@@ -29,133 +49,98 @@ export default function Page() {
       if (showMainLoader) setLoading(true);
       const response = await useGetAllChats();
       setData(response);
-    } catch (error) {
-      console.error("❌ Failed to fetch chats:", error);
+    } catch {
+      // keep previous list
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
-  // Store fetchChats in ref for socket handler
   useEffect(() => {
     fetchChatsRef.current = fetchChats;
   }, [fetchChats]);
 
-  // ✅ Fetch once on mount
   useEffect(() => {
     fetchChats();
-  }, []);
+  }, [fetchChats]);
 
-  // ✅ Re-fetch every time the page regains focus
   useFocusEffect(
     useCallback(() => {
-      fetchChats(false); // no main loader, just refresh silently
-    }, [])
+      fetchChats(false);
+    }, [fetchChats])
   );
 
-  // ✅ Pull to refresh
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchChats(false);
-  }, []);
+  }, [fetchChats]);
 
-  // ✅ Setup socket connection for real-time message updates
   useEffect(() => {
-    if (!user?.id) {
-      console.log("Inbox: Waiting for user data...");
+    if (!groupModalOpen) return;
+    useGetAllFriends({ filterBy: { filterBy: "friends" } }).then((response) => {
+      setFriends(response?.data ?? []);
+    });
+  }, [groupModalOpen]);
+
+  const handleCreateGroup = async () => {
+    if (!groupName.trim() || selectedMemberIds.length < 2) {
+      toast.show({
+        title: "Enter a name and select at least two friends.",
+        type: "error",
+      });
       return;
     }
+    try {
+      setCreatingGroup(true);
+      await createGroupChat({
+        name: groupName.trim(),
+        memberIds: selectedMemberIds,
+      });
+      setGroupModalOpen(false);
+      setGroupName("");
+      setSelectedMemberIds([]);
+      await fetchChats(false);
+    } finally {
+      setCreatingGroup(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!user?.id) return;
 
     let mounted = true;
+    let onMessage: ((messageData: any) => void) | undefined;
 
     const setupSocket = async () => {
       try {
-        const token = await AsyncStorage.getItem("token");
-        if (!token) {
-          console.warn("⚠️ Inbox: No token available for socket connection");
-          return;
-        }
-
-        // Use the same base URL as the API
-        const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://1b67jdhr-9999.uks1.devtunnels.ms';
-        
-        console.log("🔌 Inbox: Attempting socket connection to:", API_BASE_URL);
-
-        const socket = io(API_BASE_URL, {
-          transports: ["websocket"],
-          auth: {
-            token: `Bearer ${token}`,
-          },
-          query: {
-            userId: user?.id || "",
-          },
-          reconnectionAttempts: maxConnectionAttempts,
-          reconnectionDelay: 2000,
-          reconnectionDelayMax: 5000,
-          timeout: 10000,
-          autoConnect: true,
-          forceNew: true,
-        });
-
+        const socket = await getChatSocket();
+        if (!socket || !mounted) return;
         socketRef.current = socket;
 
-        socket.on("connect", () => {
-          console.log("✅ Inbox: Connected to chat server:", socket.id);
-          connectionErrorCountRef.current = 0; // Reset error count on successful connection
-        });
-
-        socket.on("disconnect", (reason) => {
-          console.log("❌ Inbox: Disconnected from chat server:", reason);
-          if (reason === "io server disconnect") {
-            // Server disconnected, attempt reconnect if under limit
-            if (connectionErrorCountRef.current < maxConnectionAttempts) {
-              socket?.connect();
-            }
-          }
-        });
-
-        socket.on("connect_error", (error) => {
-          connectionErrorCountRef.current++;
-          
-          // Only log first few errors to avoid spam
-          if (connectionErrorCountRef.current <= maxConnectionAttempts) {
-            console.error(`🔴 Inbox: Socket connection error (${connectionErrorCountRef.current}/${maxConnectionAttempts}):`, error.message);
-          }
-          
-          // Stop trying after max attempts
-          if (connectionErrorCountRef.current >= maxConnectionAttempts) {
-            console.warn("⚠️ Inbox: Max connection attempts reached. Socket disabled for this session.");
-            socket.disconnect();
-          }
-        });
-
-        // Listen for new messages
-        socket.on("private-message", (messageData: any) => {
+        onMessage = (messageData: any) => {
           if (!mounted) return;
-          
-          console.log("📨 Inbox: Received message:", messageData);
-          
-          // Extract message data
-          const messageUserId = messageData?.userId ?? messageData?.fromUserId ?? "";
+          messageData = messageData?.data ?? messageData;
+
+          const messageUserId =
+            messageData?.userId ?? messageData?.fromUserId ?? "";
           const messageChatId = messageData?.chatId ?? "";
           const currentUserId = user?.id;
-          
-          if (!messageChatId) {
-            console.warn("Inbox: Message missing chatId, skipping");
-            return;
-          }
+          if (!messageChatId) return;
 
-          // Filter: Only process messages for chats where current user is a participant
-          // The server should handle this, but we'll also check if it's a message to/from current user
           const messageToUserId = messageData?.toUserId ?? "";
-          if (messageToUserId && messageToUserId !== currentUserId && messageUserId !== currentUserId) {
-            console.log("Inbox: Message not for current user, skipping");
+          if (
+            messageToUserId &&
+            messageToUserId !== currentUserId &&
+            messageUserId !== currentUserId
+          ) {
             return;
           }
 
           const normalizedMessage: ChatMessageType = {
-            id: messageData?.id?.toString() ?? `msg-${Date.now()}-${Math.random()}`,
+            id:
+              messageData?.id?.toString() ??
+              `msg-${Date.now()}-${Math.random()}`,
             type: messageData?.type ?? "text",
             content: messageData?.content ?? messageData?.message ?? "",
             edited: !!messageData?.edited,
@@ -169,16 +154,9 @@ export default function Page() {
             file: messageData?.file ?? null,
           };
 
-          console.log("📨 Inbox: Processing message for chat:", messageChatId);
-
-          // Update the chat list with the new message
           setData((prevData) => {
             if (!prevData) {
-              console.log("Inbox: No data yet, fetching...");
-              // If no data yet, fetch it
-              if (fetchChatsRef.current) {
-                fetchChatsRef.current(false);
-              }
+              fetchChatsRef.current?.(false);
               return prevData;
             }
 
@@ -187,49 +165,32 @@ export default function Page() {
               (chat) => chat.id === normalizedMessage.chatId
             );
 
-            if (chatIndex !== -1) {
-              // Chat exists, update it
-              console.log("Inbox: Updating existing chat:", normalizedMessage.chatId);
-              const updatedChat = { ...chats[chatIndex] };
-              
-              // Add message to chat if it doesn't exist
-              const messageExists = updatedChat.messages.some(
-                (msg) => msg.id === normalizedMessage.id
-              );
-              
-              if (!messageExists) {
-                updatedChat.messages = [...updatedChat.messages, normalizedMessage];
-              }
-              
-              // Update chat's updated_at timestamp
-              updatedChat.updated_at = normalizedMessage.created_at;
-
-              // Remove chat from current position and add to top
-              chats.splice(chatIndex, 1);
-              chats.unshift(updatedChat);
-
-              return {
-                ...prevData,
-                data: chats,
-              };
-            } else {
-              // New chat - fetch updated list
-              console.log("Inbox: New chat detected, fetching updated list");
-              if (fetchChatsRef.current) {
-                fetchChatsRef.current(false);
-              }
+            if (chatIndex === -1) {
+              fetchChatsRef.current?.(false);
               return prevData;
             }
-          });
-        });
 
-        socket.on("error", (data: any) => {
-          if (connectionErrorCountRef.current < maxConnectionAttempts) {
-            console.error("🔴 Inbox: Socket error:", data);
-          }
-        });
-      } catch (err) {
-        console.error("❌ Inbox: Failed to setup socket:", err);
+            const updatedChat = { ...chats[chatIndex] };
+            const messageExists = updatedChat.messages.some(
+              (msg) => msg.id === normalizedMessage.id
+            );
+            if (!messageExists) {
+              updatedChat.messages = [
+                ...updatedChat.messages,
+                normalizedMessage,
+              ];
+            }
+            updatedChat.updated_at = normalizedMessage.created_at;
+            chats.splice(chatIndex, 1);
+            chats.unshift(updatedChat);
+            return { ...prevData, data: chats };
+          });
+        };
+
+        socket.on("private-message", onMessage);
+        socket.on("chat-message", onMessage);
+      } catch {
+        // ignore socket errors in list
       }
     };
 
@@ -238,67 +199,429 @@ export default function Page() {
     return () => {
       mounted = false;
       const sock = socketRef.current;
-      if (sock) {
-        sock.off("private-message");
-        sock.off("connect");
-        sock.off("disconnect");
-        sock.off("connect_error");
-        sock.off("error");
-        sock.disconnect();
+      if (sock && onMessage) {
+        sock.off("private-message", onMessage);
+        sock.off("chat-message", onMessage);
       }
       socketRef.current = null;
     };
-  }, [user?.id]); // Re-setup if user changes
+  }, [user?.id]);
+
+  const filteredChats = useMemo(() => {
+    const list = data?.data || [];
+    const q = query.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((chat) => {
+      const isGroup =
+        chat.type === "group" ||
+        chat.isGroup === true ||
+        chat.participants.length > 2;
+      const other = chat.participants.find((p) => p.userId !== user?.id)?.user;
+      const name = isGroup
+        ? chat.name || "Group chat"
+        : other?.username ||
+          `${other?.first_name || ""} ${other?.last_name || ""}`;
+      return name.toLowerCase().includes(q);
+    });
+  }, [data?.data, query, user?.id]);
+
+  const noteFriends = friends.slice(0, 8);
 
   return (
-    <SafeAreaView style={globalStyles.wrapper}>
-      <ThemedView padding={20}>
-        <FlatList
-          data={data?.data || []}
-          keyExtractor={(item: Chat) => item.id}
-          renderItem={({ item }) => (
-            <ChatCompo chat={item} currentUserId={user?.id ?? ""} />
-          )}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[COLORS.primary]} // Android
-              tintColor={COLORS.primary} // iOS
-            />
-          }
-          ListHeaderComponent={() => (
-            <ThemedView
-              alignItems="center"
-              flexDirection="row"
-              marginBottom={20}
-              gap={10}
-              justifyContent="center"
-            >
-              <Message variant="Bold" size={20} color={COLORS.primary} />
-              <ThemedText textAlign="center" fontSize={20}>
-                Inbox
-              </ThemedText>
-            </ThemedView>
-          )}
-          ListEmptyComponent={() =>
-            !loading && (
-              <ThemedText textAlign="center" marginTop={40}>
-                No chats yet
-              </ThemedText>
-            )
-          }
-          ListFooterComponent={() =>
-            loading && !refreshing ? (
-              <ActivityIndicator
-                size="small"
-                color={COLORS.primary}
-                style={{ marginTop: 20 }}
-              />
-            ) : null
-          }
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]} edges={["top"]}>
+      <View style={[styles.header, { backgroundColor: theme.colors.background }]}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={10}>
+          <Ionicons name="chevron-back" size={25} color={theme.colors.text} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.titleWrap} activeOpacity={0.7}>
+          <Text style={[styles.title, { color: theme.colors.text }]}>{user?.username || "Messages"}</Text>
+          <Ionicons name="chevron-down" size={16} color={theme.colors.text} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setGroupModalOpen(true)}
+          hitSlop={10}
+          accessibilityLabel="New message"
+        >
+          <Ionicons name="create-outline" size={24} color={theme.colors.primary} />
+        </TouchableOpacity>
+      </View>
+
+      <View style={[styles.searchBox, { backgroundColor: theme.colors.soft }]}>
+        <Ionicons name="search" size={16} color={theme.colors.muted} />
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search"
+          placeholderTextColor={theme.colors.muted}
+          style={[styles.searchInput, { color: theme.colors.text }]}
+          autoCapitalize="none"
+          autoCorrect={false}
+          clearButtonMode="while-editing"
         />
-      </ThemedView>
+      </View>
+
+      <FlatList
+        data={filteredChats}
+        keyExtractor={(item: Chat) => item.id}
+        renderItem={({ item }) => (
+          <ChatCompo chat={item} currentUserId={user?.id ?? ""} />
+        )}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.colors.primary}
+          />
+        }
+        ListHeaderComponent={
+          <View>
+            {(noteFriends.length > 0 || !!user) && (
+              <FlatList
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                data={
+                  user
+                    ? [
+                        {
+                          id: user.id,
+                          username: "Your note",
+                          profile_picture: user.profile_picture,
+                          isSelf: true,
+                        } as any,
+                        ...noteFriends,
+                      ]
+                    : noteFriends
+                }
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.notesRow}
+                renderItem={({ item }) => (
+                  <TouchableOpacity style={styles.noteItem} activeOpacity={0.8}>
+                    <View style={styles.noteRing}>
+                      <Image
+                        source={
+                          item.profile_picture?.url
+                            ? {
+                                uri: generateURL({
+                                  url: item.profile_picture.url,
+                                }),
+                              }
+                            : require("@/assets/user.png")
+                        }
+                        style={styles.noteAvatar}
+                      />
+                    </View>
+                    <Text style={styles.noteLabel} numberOfLines={1}>
+                      {item.isSelf ? "Your note" : item.username}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+            <View style={styles.sectionRow}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Messages</Text>
+              <TouchableOpacity>
+                <Text style={[styles.requests, { color: theme.colors.primary }]}>Requests</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        }
+        ListEmptyComponent={
+          !loading ? (
+            <View style={styles.empty}>
+              <View style={[styles.emptyIcon, { borderColor: theme.colors.primary, backgroundColor: theme.colors.soft }]}>
+                <Ionicons name="paper-plane-outline" size={32} color={theme.colors.primary} />
+              </View>
+              <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Your messages</Text>
+              <Text style={[styles.emptySubtitle, { color: theme.colors.muted }]}>
+                Send a message to start a chat.
+              </Text>
+            </View>
+          ) : null
+        }
+        ListFooterComponent={
+          loading && !refreshing ? (
+            <ActivityIndicator
+              size="small"
+              color={theme.colors.primary}
+              style={{ marginTop: 20 }}
+            />
+          ) : null
+        }
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      />
+
+      <Modal
+        visible={groupModalOpen}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setGroupModalOpen(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={() => setGroupModalOpen(false)}>
+                <Text style={styles.modalCancel}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>New message</Text>
+              <TouchableOpacity
+                onPress={handleCreateGroup}
+                disabled={creatingGroup}
+              >
+                {creatingGroup ? (
+                  <ActivityIndicator color={theme.colors.primary} />
+                ) : (
+                  <Text style={styles.modalCreate}>Chat</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              value={groupName}
+              onChangeText={setGroupName}
+              placeholder="Group name (optional for 2+)"
+              placeholderTextColor="#8e8e8e"
+              style={styles.modalInput}
+            />
+            <Text style={styles.toLabel}>To</Text>
+            <FlatList
+              data={friends}
+              keyExtractor={(friend) => friend.id}
+              renderItem={({ item }) => {
+                const selected = selectedMemberIds.includes(item.id);
+                return (
+                  <TouchableOpacity
+                    onPress={() =>
+                      setSelectedMemberIds((current) =>
+                        selected
+                          ? current.filter((id) => id !== item.id)
+                          : [...current, item.id]
+                      )
+                    }
+                    style={styles.friendRow}
+                  >
+                    <Image
+                      source={
+                        item.profile_picture?.url
+                          ? {
+                              uri: generateURL({
+                                url: item.profile_picture.url,
+                              }),
+                            }
+                          : require("@/assets/user.png")
+                      }
+                      style={styles.friendAvatar}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.friendName}>
+                        {item.first_name} {item.last_name}
+                      </Text>
+                      <Text style={styles.friendUser}>@{item.username}</Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.check,
+                        selected && styles.checkActive,
+                      ]}
+                    >
+                      {selected && (
+                        <Ionicons name="checkmark" size={14} color="#fff" />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: "#fff" },
+  header: {
+    minHeight: 48,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  titleWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#262626",
+  },
+  searchBox: {
+    marginHorizontal: 16,
+    marginTop: 6,
+    marginBottom: 8,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: "#efefef",
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: "#262626",
+    paddingVertical: 0,
+  },
+  notesRow: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 16,
+  },
+  noteItem: {
+    width: 72,
+    alignItems: "center",
+  },
+  noteRing: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    borderWidth: 1,
+    borderColor: "#dbdbdb",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 6,
+  },
+  noteAvatar: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: "#efefef",
+  },
+  noteLabel: {
+    fontSize: 12,
+    color: "#262626",
+    textAlign: "center",
+    width: 72,
+  },
+  sectionRow: {
+    paddingHorizontal: 16,
+    paddingBottom: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#262626",
+  },
+  requests: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#0095f6",
+  },
+  list: {
+    paddingBottom: 24,
+    flexGrow: 1,
+  },
+  empty: {
+    alignItems: "center",
+    paddingTop: 64,
+    paddingHorizontal: 40,
+  },
+  emptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 1.5,
+    borderColor: "#262626",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#262626",
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: "#8e8e8e",
+    textAlign: "center",
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  modalCard: {
+    maxHeight: "88%",
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    minHeight: 52,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#dbdbdb",
+  },
+  modalCancel: { fontSize: 16, color: "#262626" },
+  modalTitle: { fontSize: 16, fontWeight: "700", color: "#262626" },
+  modalCreate: { fontSize: 16, fontWeight: "700", color: "#0095f6" },
+  modalInput: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: "#efefef",
+    paddingHorizontal: 12,
+    fontSize: 15,
+    color: "#262626",
+  },
+  toLabel: {
+    marginTop: 14,
+    marginBottom: 4,
+    marginHorizontal: 16,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#262626",
+  },
+  friendRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 12,
+  },
+  friendAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#efefef",
+  },
+  friendName: { fontSize: 14, fontWeight: "600", color: "#262626" },
+  friendUser: { fontSize: 13, color: "#8e8e8e", marginTop: 1 },
+  check: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: "#dbdbdb",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkActive: {
+    backgroundColor: "#0095f6",
+    borderColor: "#0095f6",
+  },
+});

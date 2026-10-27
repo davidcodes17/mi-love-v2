@@ -7,9 +7,7 @@ import * as Notifications from "expo-notifications";
 export async function updateNotificationBadgeCount(count: number): Promise<void> {
   try {
     await Notifications.setBadgeCountAsync(count);
-    console.log(`📱 Badge count updated to: ${count}`);
   } catch (error) {
-    console.error("Failed to update badge count:", error);
   }
 }
 
@@ -28,7 +26,6 @@ export async function getNotificationBadgeCount(): Promise<number> {
     const count = await Notifications.getBadgeCountAsync();
     return count;
   } catch (error) {
-    console.error("Failed to get badge count:", error);
     return 0;
   }
 }
@@ -43,7 +40,6 @@ export async function incrementBadgeCount(increment = 1): Promise<number> {
     await updateNotificationBadgeCount(newCount);
     return newCount;
   } catch (error) {
-    console.error("Failed to increment badge count:", error);
     return 0;
   }
 }
@@ -58,7 +54,6 @@ export async function decrementBadgeCount(decrement = 1): Promise<number> {
     await updateNotificationBadgeCount(newCount);
     return newCount;
   } catch (error) {
-    console.error("Failed to decrement badge count:", error);
     return 0;
   }
 }

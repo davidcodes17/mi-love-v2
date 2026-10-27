@@ -1,33 +1,34 @@
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { Platform, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TabIcon from "./tab-icon";
-import { usePathname } from "expo-router";
+import useTheme from "@/hooks/use-theme";
+
+const TAB_ORDER = ["home", "explore", "add", "reels", "profile"] as const;
 
 const BottomNav = ({ state, descriptors, navigation }: BottomTabBarProps) => {
-  const { bottom } = useSafeAreaInsets();
-  const pathname = usePathname();
-  const arranged = [];
-  arranged.push(state.routes[1]);
-  arranged.push(state.routes[3]);
-  arranged.push(state.routes[0]);
-  arranged.push(state.routes[2]);
-  arranged.push(state.routes[4]);
+  const insets = useSafeAreaInsets();
+  const theme = useTheme();
 
-  
+  const arranged = TAB_ORDER.map((name) =>
+    state.routes.find((route) => route.name === name)
+  ).filter(Boolean) as typeof state.routes;
 
   return (
     <View
       style={[
         styles.container,
         {
-          marginBottom: Platform.OS === "ios" ? bottom : 10,
+          backgroundColor: theme.colors.surface,
+          borderTopColor: theme.colors.border,
+          shadowColor: theme.colors.text,
         },
+        { paddingBottom: Math.max(insets.bottom, 8) },
       ]}
     >
-      {arranged?.map((route, index) => {
+      {arranged.map((route) => {
         const { options } = descriptors[route.key];
-        const isFocused = pathname.includes(route.name);
+        const isFocused = state.routes[state.index]?.key === route.key;
 
         const onPress = () => {
           const event = navigation.emit({
@@ -50,18 +51,17 @@ const BottomNav = ({ state, descriptors, navigation }: BottomTabBarProps) => {
 
         return (
           <Pressable
-            key={index}
+            key={route.key}
             accessibilityRole="button"
             accessibilityState={isFocused ? { selected: true } : {}}
-            accessibilityLabel={options.tabBarAccessibilityLabel}
-            // testID={options.tabBarTestID}
+            accessibilityLabel={
+              options.tabBarAccessibilityLabel || route.name
+            }
             onPress={onPress}
             onLongPress={onLongPress}
-            style={styles.tab}
+            style={[styles.tab, isFocused && { backgroundColor: theme.colors.soft }]}
           >
-            <View style={{ width: "auto" }}>
-              <TabIcon route={route.name} isFocused={isFocused} />
-            </View>
+            <TabIcon route={route.name} isFocused={isFocused} />
           </Pressable>
         );
       })}
@@ -71,15 +71,27 @@ const BottomNav = ({ state, descriptors, navigation }: BottomTabBarProps) => {
 
 const styles = StyleSheet.create({
   container: {
-    height: 70,
-    justifyContent: "space-evenly",
-    alignItems: "center",
-    // borderRadius: 50,
-    marginHorizontal: "auto",
     flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    backgroundColor: "#fff",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#dbdbdb",
+    paddingTop: 8,
     width: "100%",
+    shadowOffset: { width: 0, height: -5 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 12,
   },
-  tab: {},
+  tab: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    height: 46,
+    marginHorizontal: 5,
+    borderRadius: 18,
+  },
 });
 
 export default BottomNav;

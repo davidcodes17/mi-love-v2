@@ -5,15 +5,14 @@ import {
   ActivityIndicator,
   Alert,
   View,
-  Dimensions,
 } from "react-native";
 import React, { useRef, useState } from "react";
 import { Gift, SendGiftPayload } from "@/types/wallet.types";
 import { useSendGift } from "@/hooks/wallet-hooks.hooks";
 import { ThemedText } from "@/components/ui/themed-view";
 import LottieView from "lottie-react-native";
-
-const { width, height } = Dimensions.get("window");
+import { usePreferencesStore } from "@/store/preferences-store";
+import { generateURL } from "@/utils/image-utils.utils";
 
 const GiftCompo = ({
   gift,
@@ -26,10 +25,13 @@ const GiftCompo = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [showAnimation, setShowAnimation] = useState(false);
+  const confirmBeforeSendGift = usePreferencesStore(
+    (s) => s.confirmBeforeSendGift
+  );
 
   const animationRef = useRef<LottieView>(null);
 
-  const handleSendGift = async () => {
+  const sendGift = async () => {
     if (loading) return;
     setLoading(true);
 
@@ -46,18 +48,33 @@ const GiftCompo = ({
         response.message.toLowerCase().includes("insufficient balance") ||
         response.message.toLowerCase().includes("error")
       ) {
-        Alert.alert("❌ Failed", response.message);
+        Alert.alert("Failed", response.message);
       } else {
         setShowAnimation(true);
         onSuccess();
-        Alert.alert("🎉 Success", response.message);
-        console.log("✅ Gift sent successfully:", response.message);
+        Alert.alert("Success", response.message);
       }
     } catch (err: any) {
       Alert.alert("Error", err?.message || "Failed to send gift. Try again.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSendGift = () => {
+    if (loading) return;
+    if (!confirmBeforeSendGift) {
+      sendGift();
+      return;
+    }
+    Alert.alert(
+      "Send gift?",
+      `Send ${gift.name} for ${gift.points} coins?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Send", onPress: sendGift },
+      ]
+    );
   };
 
   return (
@@ -72,9 +89,13 @@ const GiftCompo = ({
           <ActivityIndicator size="small" color="#FF4081" style={styles.image} />
         ) : (
           <Image
-            source={{ uri: gift?.image?.url }}
+            source={
+              gift?.image?.url
+                ? { uri: generateURL({ url: gift.image.url }) }
+                : require("@/assets/post.jpg")
+            }
             style={styles.image}
-            resizeMode="cover"
+            resizeMode="contain"
           />
         )}
 
@@ -82,7 +103,7 @@ const GiftCompo = ({
           {gift.name}
         </ThemedText>
         <ThemedText fontSize={10} textAlign="center" color="#888">
-          {gift.points} pts
+          {gift.points} coins
         </ThemedText>
       </View>
 

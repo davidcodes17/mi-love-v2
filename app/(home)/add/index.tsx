@@ -20,7 +20,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
-import { useUploadService } from "@/hooks/auth-hooks.hooks";
+import {
+  useRetryUploadJob,
+  useUploadService,
+  useWaitForUploadJob,
+} from "@/hooks/auth-hooks.hooks";
 import { useCreatePost } from "@/hooks/post-hooks.hooks";
 import { toast } from "@/components/lib/toast-manager";
 import { generateURL } from "@/utils/image-utils.utils";
@@ -30,13 +34,28 @@ import BackButton from "@/components/common/back-button";
 
 const { width } = Dimensions.get("window");
 const IMAGE_SIZE = (width - 60) / 3; // 3 images per row with padding
+const MAX_FILES = 5;
+const MAX_FILE_SIZE = 80 * 1024 * 1024;
+
+type MediaItem = {
+  key: string;
+  uri: string;
+  name: string;
+  type: string;
+  fileSize?: number;
+  status: "pending" | "uploading" | "processing" | "uploaded" | "failed";
+  progress: number;
+  fileId?: string;
+  jobId?: string;
+  error?: string;
+};
 
 export default function Page() {
   const [content, setContent] = useState("");
-  const [images, setImages] = useState<string[]>([]);
-  const [fileIds, setFileIds] = useState<string[]>([]);
+  const [images, setImages] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [visibility, setVisibility] = useState<"public" | "friends">("public");
 
   const { user } = useUserStore();
   const maxContentLength = 500;
@@ -62,27 +81,125 @@ export default function Page() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
         allowsMultipleSelection: true,
         allowsEditing: false,
         quality: 0.8,
+        videoMaxDuration: 60,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const uris = result.assets.map((a) => a.uri);
-        setImages((prev) => [...prev, ...uris]);
+        const available = MAX_FILES - images.length;
+        const accepted = result.assets.slice(0, available).filter((asset) => {
+          if (asset.fileSize && asset.fileSize > MAX_FILE_SIZE) {
+            toast.error(`${asset.fileName || "A file"} exceeds the 80MB limit.`);
+            return false;
+          }
+          return true;
+        });
+        if (result.assets.length > available) {
+          toast.error(`You can attach up to ${MAX_FILES} files.`);
+        }
+        setImages((prev) => [
+          ...prev,
+          ...accepted.map((asset, index) => ({
+            key: `${asset.assetId || asset.uri}-${Date.now()}-${index}`,
+            uri: asset.uri,
+            name:
+              asset.fileName ||
+              asset.uri.split("/").pop() ||
+              (asset.type === "video" ? "video.mp4" : "image.jpg"),
+            type:
+              asset.mimeType ||
+              (asset.type === "video" ? "video/mp4" : "image/jpeg"),
+            fileSize: asset.fileSize,
+            status: "pending" as const,
+            progress: 0,
+          })),
+        ]);
       }
     } catch (error) {
-      console.error("Image picker error:", error);
       toast.error("Error selecting image. Please try again.");
     }
   };
 
   const removeImage = (index: number) => {
     setImages((prev) => prev.filter((_, i) => i !== index));
-    // Also remove corresponding fileId if exists
-    if (fileIds[index]) {
-      setFileIds((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updateMedia = (key: string, patch: Partial<MediaItem>) => {
+    setImages((prev) =>
+      prev.map((item) => (item.key === key ? { ...item, ...patch } : item))
+    );
+  };
+
+  const uploadItem = async (item: MediaItem): Promise<string | null> => {
+    updateMedia(item.key, {
+      status: "uploading",
+      progress: 0,
+      error: undefined,
+    });
+    const response = await useUploadService({
+      file: { uri: item.uri, name: item.name, type: item.type },
+      onProgress: (progress) => updateMedia(item.key, { progress }),
+    });
+    const fileId = response?.data?.[0]?.id || response?.files?.[0]?.id;
+    if (fileId) {
+      updateMedia(item.key, { status: "uploaded", progress: 1, fileId });
+      return fileId;
+    }
+    const jobId =
+      response?.jobs?.[0]?.id ||
+      response?.data?.jobs?.[0]?.id ||
+      response?.job?.id;
+    if (jobId) {
+      updateMedia(item.key, { status: "processing", progress: 1, jobId });
+      try {
+        const processedId = await useWaitForUploadJob({ jobId });
+        updateMedia(item.key, {
+          status: "uploaded",
+          fileId: processedId,
+          error: undefined,
+        });
+        return processedId;
+      } catch (error) {
+        updateMedia(item.key, {
+          status: "failed",
+          error: error instanceof Error ? error.message : "Processing failed",
+        });
+        return null;
+      }
+    }
+    updateMedia(item.key, {
+      status: "failed",
+      error: response?.message || response?.error || "Upload failed",
+    });
+    return null;
+  };
+
+  const retryItem = async (item: MediaItem) => {
+    if (uploading) return;
+    setUploading(true);
+    try {
+      if (item.jobId) {
+        updateMedia(item.key, { status: "processing", error: undefined });
+        const retry = await useRetryUploadJob({ jobId: item.jobId });
+        if (retry?.error) throw new Error(retry.error);
+        const nextJobId =
+          retry?.data?.id || retry?.job?.id || retry?.jobs?.[0]?.id || item.jobId;
+        updateMedia(item.key, { jobId: nextJobId });
+        const fileId = await useWaitForUploadJob({ jobId: nextJobId });
+        updateMedia(item.key, { status: "uploaded", fileId, error: undefined });
+      } else {
+        await uploadItem(item);
+      }
+    } catch (error) {
+      updateMedia(item.key, {
+        status: "failed",
+        error: error instanceof Error ? error.message : "Retry failed",
+      });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -90,21 +207,17 @@ export default function Page() {
     setUploading(true);
     try {
       const ids: string[] = [];
-      for (const uri of images) {
-        const file = {
-          uri,
-          name: uri.split("/").pop() || "image.jpg",
-          type: "image/jpeg",
-        };
-        const response = await useUploadService({ file });
-        if (response?.data?.[0]?.id) {
-          ids.push(response.data[0].id);
+      for (const item of images) {
+        if (item.fileId) {
+          ids.push(item.fileId);
+          continue;
         }
+        const id = await uploadItem(item);
+        if (id) ids.push(id);
       }
-      setFileIds(ids);
       return ids;
     } catch (e) {
-      toast.error("Image upload failed.");
+      toast.error("Media upload failed.");
       return [];
     } finally {
       setUploading(false);
@@ -112,10 +225,8 @@ export default function Page() {
   };
 
   const handlePost = async () => {
-    if (!content.trim()) {
-      toast.error(
-        "Post content cannot be empty. Please write something before posting."
-      );
+    if (!content.trim() && images.length === 0) {
+      toast.error("Add a caption or at least one photo/video.");
       return;
     }
 
@@ -125,19 +236,21 @@ export default function Page() {
     }
 
     setLoading(true);
-    let ids = fileIds;
+    let ids = images.map((item) => item.fileId).filter(Boolean) as string[];
 
     try {
-      if (images.length && fileIds.length !== images.length) {
-        setUploading(true);
+      if (images.length && ids.length !== images.length) {
         ids = await uploadImages();
-        setUploading(false);
+      }
+      if (ids.length !== images.length) {
+        toast.error("Some files failed to upload. Retry or remove them before posting.");
+        return;
       }
 
       const response = await useCreatePost({
         data: {
-          visibility: "public",
-          content,
+          visibility,
+          content: content.trim(),
           files: ids,
         },
       });
@@ -147,18 +260,16 @@ export default function Page() {
           `Post created successfully! 🎉 Your post has been published.`
         );
 
-        // Reset form
         setContent("");
         setImages([]);
-        setFileIds([]);
 
-        // Redirect to home page after a short delay
         setTimeout(() => {
           router.push("/(home)/home");
         }, 1000);
       } else {
         toast.error(
-          `Failed to create post: ${response?.message || "Something went wrong. Please try again."
+          `Failed to create post: ${
+            response?.message || "Something went wrong. Please try again."
           }`
         );
       }
@@ -189,9 +300,12 @@ export default function Page() {
         </ThemedText>
         <TouchableOpacity
           onPress={handlePost}
-          disabled={loading || uploading || !content.trim()}
+          disabled={loading || uploading || (!content.trim() && images.length === 0)}
           style={{
-            opacity: loading || uploading || !content.trim() ? 0.5 : 1,
+            opacity:
+              loading || uploading || (!content.trim() && images.length === 0)
+                ? 0.5
+                : 1,
           }}
         >
           <ThemedView
@@ -289,11 +403,45 @@ export default function Page() {
           </ThemedView>
         </ThemedView>
 
+        {/* Visibility */}
+        <ThemedView marginBottom={20}>
+          <ThemedText weight="bold" fontSize={16} marginBottom={12}>
+            Who can see this?
+          </ThemedText>
+          <ThemedView flexDirection="row" gap={10}>
+            {(["public", "friends"] as const).map((option) => {
+              const active = visibility === option;
+              return (
+                <TouchableOpacity
+                  key={option}
+                  onPress={() => setVisibility(option)}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: active ? COLORS.primary : "#e5e5e5",
+                    backgroundColor: active ? "rgba(212,19,114,0.08)" : "#fff",
+                    alignItems: "center",
+                  }}
+                >
+                  <ThemedText
+                    weight="bold"
+                    color={active ? COLORS.primary : "#666"}
+                  >
+                    {option === "public" ? "Everyone" : "Friends only"}
+                  </ThemedText>
+                </TouchableOpacity>
+              );
+            })}
+          </ThemedView>
+        </ThemedView>
+
         {/* Images Section */}
         {images.length > 0 && (
           <ThemedView marginBottom={20}>
             <ThemedText weight="bold" fontSize={16} marginBottom={12}>
-              Selected Images ({images.length})
+              Selected media ({images.length}/{MAX_FILES})
             </ThemedText>
             <View
               style={{
@@ -302,10 +450,10 @@ export default function Page() {
                 gap: 10,
               }}
             >
-              {images.map((uri, index) => (
-                <View key={`${uri}-${index}`} style={{ position: "relative" }}>
+              {images.map((item, index) => (
+                <View key={item.key} style={{ position: "relative" }}>
                   <Image
-                    source={{ uri }}
+                    source={{ uri: item.uri }}
                     style={{
                       width: IMAGE_SIZE,
                       height: IMAGE_SIZE,
@@ -314,6 +462,32 @@ export default function Page() {
                     }}
                     resizeMode="cover"
                   />
+                  <View
+                    style={{
+                      position: "absolute",
+                      left: 4,
+                      right: 4,
+                      bottom: 4,
+                      backgroundColor: "rgba(0,0,0,0.7)",
+                      borderRadius: 6,
+                      padding: 4,
+                    }}
+                  >
+                    <ThemedText color="#fff" fontSize={10}>
+                      {item.status === "uploading"
+                        ? `Uploading ${Math.round(item.progress * 100)}%`
+                        : item.status === "processing"
+                          ? "Processing video…"
+                          : item.status}
+                    </ThemedText>
+                    {item.status === "failed" && (
+                      <TouchableOpacity onPress={() => retryItem(item)}>
+                        <ThemedText color="#60a5fa" fontSize={10} weight="bold">
+                          Retry
+                        </ThemedText>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                   <TouchableOpacity
                     onPress={() => removeImage(index)}
                     style={{
@@ -342,7 +516,7 @@ export default function Page() {
         <TouchableOpacity
           onPress={pickImage}
           activeOpacity={0.7}
-          disabled={uploading}
+          disabled={uploading || images.length >= MAX_FILES}
         >
           <ThemedView
             backgroundColor="#f9f9f9"
@@ -403,8 +577,8 @@ export default function Page() {
               Tips for a great post
             </ThemedText>
             <ThemedText fontSize={12} color="#3b82f6" marginTop={4}>
-              Share your thoughts, experiences, or moments. You can add up to 9
-              images to make your post more engaging!
+              Add up to 5 images or videos. Files with a known size must be
+              80MB or smaller.
             </ThemedText>
           </ThemedView>
         </ThemedView>

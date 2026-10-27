@@ -60,7 +60,6 @@ export const OutgoingCallScreen = ({
         await call.leave();
       }
     } catch (error) {
-      console.error("Error canceling call:", error);
     } finally {
       onCancel();
     }

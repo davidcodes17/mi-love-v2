@@ -1,181 +1,219 @@
-import { Image, TouchableOpacity } from "react-native";
+import {
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import React, { useState } from "react";
-import ThemedView, { ThemedText } from "../ui/themed-view";
-import { COLORS } from "@/config/theme";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { Chat, Message, User } from "@/types/chat.types";
 import { generateURL } from "@/utils/image-utils.utils";
 import { useUserStore } from "@/store/store";
-// <- adjust path to your interfaces
 
-// Props interface
 interface ChatCompoProps {
   chat: Chat;
-  currentUserId: string; // to know who has read/unread
+  currentUserId: string;
 }
+
+const formatRelative = (iso?: string) => {
+  if (!iso) return "";
+  const date = new Date(iso);
+  const diffMs = Date.now() - date.getTime();
+  const mins = Math.floor(diffMs / 60000);
+  const hours = Math.floor(diffMs / 3600000);
+  const days = Math.floor(diffMs / 86400000);
+  if (mins < 1) return "now";
+  if (mins < 60) return `${mins}m`;
+  if (hours < 24) return `${hours}h`;
+  if (days < 7) return `${days}d`;
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+};
+
+const previewText = (lastMessage?: Message) => {
+  if (!lastMessage) return "No messages yet";
+  if (lastMessage.type === "call" || lastMessage.type === "video-call") {
+    const video = lastMessage.type === "video-call";
+    const content = lastMessage.content?.toLowerCase() || "";
+    if (content.includes("missed")) return video ? "Missed video call" : "Missed call";
+    return video ? "Video call" : "Voice call";
+  }
+  if (lastMessage.type === "announcement") {
+    return lastMessage.content || "Update";
+  }
+  if (lastMessage.content) return lastMessage.content;
+  if (lastMessage.file?.url) return "Sent an attachment";
+  return "No messages yet";
+};
 
 const ChatCompo: React.FC<ChatCompoProps> = ({ chat, currentUserId }) => {
   const [imageError, setImageError] = useState(false);
-  const { user, updateUser, clearUser } = useUserStore();
+  const { user } = useUserStore();
+  const isGroup =
+    chat.type === "group" ||
+    chat.isGroup === true ||
+    chat.participants.length > 2;
 
-  // find other participant (not the current user)
   const otherParticipant = chat.participants.find((p) => p.userId !== user?.id)
     ?.user as User | undefined;
 
-  // get last message
+  const displayName = isGroup
+    ? chat.name || "Group chat"
+    : otherParticipant?.username ||
+      (otherParticipant
+        ? `${otherParticipant.first_name} ${otherParticipant.last_name}`.trim()
+        : "Unknown");
+
+  const displayImage = isGroup
+    ? chat.image?.url
+    : otherParticipant?.profile_picture?.url;
+
   const lastMessage: Message | undefined =
     chat.messages.length > 0
       ? chat.messages[chat.messages.length - 1]
       : undefined;
 
-  // get unread count (example logic: messages not sent by current user)
   const unreadCount = chat.messages.filter(
-    (msg: any) => msg.userId !== currentUserId && !msg.deleted
+    (msg: any) => msg.userId !== currentUserId && !msg.deleted && !msg.read
   ).length;
+
+  const hasUnread = unreadCount > 0;
+  const preview = previewText(lastMessage);
 
   return (
     <TouchableOpacity
+      activeOpacity={0.65}
       onPress={() => {
-        console.log(chat?.id, "PWPPW");
         router.push({
-          pathname: "/(chats)/chats", // route
+          pathname: "/(chats)/chats",
           params: {
             chatId: chat.id,
-            userId: otherParticipant?.id,
-            profileUrl: otherParticipant?.profile_picture?.url,
-            name: `${otherParticipant?.first_name} ${otherParticipant?.last_name}`,
+            recipientId: isGroup ? undefined : otherParticipant?.id,
+            profileUrl: displayImage,
+            name: displayName,
           },
         });
       }}
-      style={{ flex: 1 }}
+      style={styles.row}
     >
-      <ThemedView
-        flexDirection="row"
-        justifyContent="space-between"
-        alignItems="center"
-        borderBottomWidth={1}
-        borderColor={"#ddd"}
-        paddingVertical={20}
+      <Image
+        source={
+          imageError || !displayImage
+            ? require("@/assets/user.png")
+            : { uri: generateURL({ url: displayImage }) }
+        }
+        onError={() => setImageError(true)}
+        defaultSource={require("@/assets/user.png")}
+        style={styles.avatar}
+      />
+
+      <View style={styles.body}>
+        <View style={styles.topLine}>
+          <Text
+            style={[styles.name, hasUnread && styles.nameUnread]}
+            numberOfLines={1}
+          >
+            {displayName}
+          </Text>
+          <Text style={styles.time}>{formatRelative(lastMessage?.created_at)}</Text>
+        </View>
+        <View style={styles.bottomLine}>
+          <Text
+            style={[styles.preview, hasUnread && styles.previewUnread]}
+            numberOfLines={1}
+          >
+            {preview}
+          </Text>
+          {hasUnread ? <View style={styles.unreadDot} /> : null}
+        </View>
+      </View>
+
+      <TouchableOpacity
+        hitSlop={10}
+        style={styles.cameraBtn}
+        onPress={() => {
+          router.push({
+            pathname: "/(chats)/chats",
+            params: {
+              chatId: chat.id,
+              recipientId: isGroup ? undefined : otherParticipant?.id,
+              profileUrl: displayImage,
+              name: displayName,
+            },
+          });
+        }}
       >
-        {/* Left side: Avatar + Name + Last Message */}
-        <ThemedView flexDirection="row" alignItems="center" gap={10}>
-          <Image
-            source={
-              imageError || !otherParticipant?.profile_picture?.url
-                ? require("@/assets/user.png")
-                : {
-                  uri: generateURL({
-                    url: otherParticipant.profile_picture.url,
-                  }),
-                }
-            }
-            onError={() => setImageError(true)}
-            defaultSource={require("@/assets/user.png")}
-            style={{
-              width: 45,
-              height: 45,
-              borderRadius: 200,
-            }}
-            resizeMode="cover"
-          />
-          <ThemedView>
-            <ThemedText fontSize={15} weight="semibold">
-              {otherParticipant
-                ? `${otherParticipant.first_name} ${otherParticipant.last_name}`
-                : "Unknown User"}
-            </ThemedText>
-            <ThemedText numberOfLines={1} fontSize={12} ellipsizeMode="tail">
-              {
-                //@ts-ignore
-                (() => {
-                  // Check if it's a call type message
-                  if (lastMessage?.type === "call" || lastMessage?.type === "video-call") {
-                    const isVideoCall = lastMessage?.type === "video-call";
-                    const content = lastMessage?.content?.toLowerCase() || "";
-                    const isMissedCall = content.includes("missed");
-                    const isIncoming = content.includes("incoming");
-                    const isOutgoing = content.includes("outgoing") || content.includes("initiated");
-                    
-                    const callType = isVideoCall ? "📹 Video call" : "📞 Voice call";
-                    const callStatus = isMissedCall ? " - Missed" : isIncoming ? " - Incoming" : isOutgoing ? " - Outgoing" : "";
-                    return `${callType}${callStatus}`;
-                  }
-                  
-                  // Check if it's an announcement that mentions a call
-                  if (lastMessage?.type === "announcement") {
-                    const content = lastMessage?.content?.toLowerCase() || "";
-                    if (content.includes("call")) {
-                      // Extract call info from announcement
-                      const isVideoCall = content.includes("video");
-                      const isMissedCall = content.includes("missed");
-                      const isIncoming = content.includes("incoming");
-                      const isOutgoing = content.includes("outgoing") || content.includes("initiated");
-                      
-                      const callType = isVideoCall ? "📹 Video call" : "📞 Voice call";
-                      const callStatus = isMissedCall ? " - Missed" : isIncoming ? " - Incoming" : isOutgoing ? " - Outgoing" : "";
-                      return `${callType}${callStatus}`;
-                    }
-                    // Other announcements just show content
-                    return lastMessage?.content;
-                  }
-                  
-                  // Regular text messages
-                  if (lastMessage?.content) {
-                    return lastMessage?.content;
-                  }
-                  
-                  // Image attachment
-                  if (lastMessage?.file?.url &&
-                    ["jpg", "jpeg", "png", "svg"].some(ext =>
-                      lastMessage?.file?.url.toLowerCase().endsWith(ext)
-                    )
-                  ) {
-                    return "🖼️ Image Shared";
-                  }
-                  
-                  return "No messages yet";
-                })()
-              }
-
-            </ThemedText>
-          </ThemedView>
-        </ThemedView>
-
-        {/* Right side: Time + Unread badge */}
-        <ThemedView alignItems="flex-end">
-          <ThemedText>
-            {lastMessage
-              ? new Date(lastMessage.created_at).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-              : ""}
-          </ThemedText>
-
-          {unreadCount > 0 && (
-            <ThemedView
-              justifyContent="center"
-              flexDirection="row"
-              marginTop={2}
-            >
-              <ThemedText
-                width={20}
-                height={20}
-                backgroundColor={COLORS.primary}
-                borderRadius={200}
-                textAlign="center"
-                paddingTop={4}
-                fontSize={10}
-                color={"#fff"}
-              >
-                {unreadCount}
-              </ThemedText>
-            </ThemedView>
-          )}
-        </ThemedView>
-      </ThemedView>
+        <Ionicons name="camera-outline" size={24} color="#262626" />
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 };
 
 export default ChatCompo;
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    minHeight: 72,
+    backgroundColor: "#fff",
+  },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#efefef",
+    marginRight: 12,
+  },
+  body: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  topLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 2,
+  },
+  name: {
+    flex: 1,
+    fontSize: 14,
+    color: "#262626",
+    fontWeight: "400",
+    marginRight: 8,
+  },
+  nameUnread: {
+    fontWeight: "700",
+  },
+  time: {
+    fontSize: 12,
+    color: "#8e8e8e",
+  },
+  bottomLine: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  preview: {
+    flex: 1,
+    fontSize: 14,
+    color: "#8e8e8e",
+    marginRight: 8,
+  },
+  previewUnread: {
+    color: "#262626",
+    fontWeight: "600",
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#0095f6",
+  },
+  cameraBtn: {
+    paddingLeft: 6,
+    paddingVertical: 8,
+  },
+});

@@ -8,7 +8,6 @@ import {
 } from "react";
 import {
   CallingState,
-  StreamCall,
   StreamVideo,
   StreamVideoClient,
   useCalls,
@@ -16,8 +15,9 @@ import {
 } from "@stream-io/video-react-native-sdk";
 import { useUserStore } from "@/store/store";
 import { getStreamToken } from "@/services/stream-service.service";
-import { IncomingCallScreen } from "@/components/common/calls/incoming-call-screen";
 import type { Call } from "@stream-io/video-react-native-sdk";
+import { getChatSocket } from "@/services/chat-socket.service";
+import { router } from "expo-router";
 
 interface CallContextType {
   client: StreamVideoClient | null;
@@ -50,7 +50,6 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
   // Initialize Stream client
   useEffect(() => {
     if (!userStore?.id) {
-      console.log("CallProvider: No user ID available, skipping initialization");
       return;
     }
 
@@ -59,12 +58,10 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
 
     const initialize = async () => {
       try {
-        console.log("CallProvider: Initializing Stream client for user:", userStore.id);
 
         // Fetch token
         const tokenResponse = await getStreamToken();
         if (!tokenResponse?.token) {
-          console.error("CallProvider: No token received");
           return;
         }
 
@@ -94,9 +91,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
 
         setClient(streamClient);
         setIsInitialized(true);
-        console.log("CallProvider: Stream client initialized successfully");
       } catch (error) {
-        console.error("CallProvider: Error initializing client:", error);
         if (mounted) {
           setIsInitialized(false);
         }
@@ -113,9 +108,49 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         try {
           streamClient.disconnectUser();
         } catch (error) {
-          console.error("CallProvider: Error disconnecting client:", error);
         }
       }
+    };
+  }, [userStore?.id]);
+
+  useEffect(() => {
+    if (!userStore?.id) return;
+    let mounted = true;
+    let onCall: ((payload: any) => void) | undefined;
+
+    getChatSocket().then((socket) => {
+      if (!socket || !mounted) return;
+      onCall = (event: any) => {
+        const payload = event?.data ?? event;
+        const senderId =
+          payload?.fromUserId ?? payload?.senderId ?? payload?.userId;
+        if (
+          !payload?.callId ||
+          !senderId ||
+          senderId === userStore.id ||
+          (payload?.toUserId && payload.toUserId !== userStore.id)
+        ) {
+          return;
+        }
+        router.push({
+          pathname: "/ringing",
+          params: {
+            id: payload.callId,
+            recipientId: senderId,
+            callType: payload.callType ?? "audio",
+            chatId: payload.chatId,
+            mode: "join",
+          },
+        });
+      };
+      socket.on("call", onCall);
+    });
+
+    return () => {
+      mounted = false;
+      getChatSocket().then((socket) => {
+        if (socket && onCall) socket.off("call", onCall);
+      });
     };
   }, [userStore?.id]);
 
@@ -125,18 +160,15 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     callType: "audio" | "video" = "audio"
   ): Promise<Call | undefined> => {
     if (!client) {
-      console.error("CallProvider: Client not initialized");
       return undefined;
     }
 
     if (!userId) {
-      console.error("CallProvider: User ID is required");
       return undefined;
     }
 
     try {
       const callId = `${callType}-call-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      console.log("CallProvider: Creating call", callId, "for user:", userId, "type:", callType);
 
       const call = client.call("default", callId);
 
@@ -150,15 +182,8 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         },
       });
 
-      console.log("CallProvider: Call created successfully:", callId, "Call object:", call);
       return call;
     } catch (error: any) {
-      console.error("CallProvider: Error creating call:", error);
-      console.error("CallProvider: Error details:", {
-        message: error?.message,
-        code: error?.code,
-        response: error?.response,
-      });
       return undefined;
     }
   }, [client, userStore?.id]);
@@ -169,17 +194,14 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     callType: "audio" | "video" = "audio"
   ): Promise<Call | undefined> => {
     if (!client) {
-      console.error("CallProvider: Client not initialized");
       return undefined;
     }
 
     if (!callId) {
-      console.error("CallProvider: Call ID is required");
       return undefined;
     }
 
     try {
-      console.log("CallProvider: Joining call:", callId, "type:", callType);
 
       // Add delay to ensure native modules are ready
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -188,18 +210,15 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
 
       // Validate call object
       if (!call) {
-        console.error("CallProvider: Failed to create call object");
         return undefined;
       }
 
       // Try to get the call first
       try {
         await call.get();
-        console.log("CallProvider: Call found, joining...");
       } catch (error) {
         // Call doesn't exist, this shouldn't happen for outgoing calls
         // but we'll handle it gracefully
-        console.log("CallProvider: Call not found, this might be an issue");
         // Don't create it, just try to join
       }
 
@@ -211,21 +230,12 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         await call.join({
           create: false,
         });
-        console.log("CallProvider: Call joined successfully:", callId);
         return call;
       } catch (joinError: any) {
-        console.error("CallProvider: Error during call.join():", joinError);
         // Don't throw, just return undefined
         return undefined;
       }
     } catch (error: any) {
-      console.error("CallProvider: Error joining call:", error);
-      console.error("CallProvider: Error details:", {
-        message: error?.message,
-        code: error?.code,
-        response: error?.response,
-        stack: error?.stack,
-      });
       return undefined;
     }
   }, [client]);
@@ -290,26 +300,6 @@ const CallStateManager = ({
     setActiveCall(activeCall || null);
     setCallState(callingState);
   }, [activeCall, callingState, setActiveCall, setCallState]);
-
-  // Check for incoming call
-  const incomingCall = calls.find(
-    (call) =>
-      call.state?.callingState === CallingState.RINGING && !call.isCreatedByMe
-  );
-
-  // Show incoming call screen
-  if (incomingCall) {
-    return (
-      <StreamCall call={incomingCall}>
-        <IncomingCallScreen />
-      </StreamCall>
-    );
-  }
-
-  // Wrap active call if exists
-  if (activeCall) {
-    return <StreamCall call={activeCall}>{children}</StreamCall>;
-  }
 
   return <>{children}</>;
 };

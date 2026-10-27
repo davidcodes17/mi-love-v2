@@ -12,13 +12,14 @@ const OutgoingCall = () => {
   const [call, setCall] = useState<Call | null>(null);
   const [isJoining, setIsJoining] = useState(false);
   const client = useStreamVideoClient();
-  const { id, recipientId, mode, chatId, profileUrl, name } = useLocalSearchParams<{
+  const { id, recipientId, mode, chatId, profileUrl, name, callType } = useLocalSearchParams<{
     id: string;
     recipientId: string;
     mode: "join" | "create";
     chatId: string;
     profileUrl: string;
     name: string;
+    callType?: "audio" | "video";
   }>();
 
   const isJoin = mode === "join";
@@ -28,9 +29,7 @@ const OutgoingCall = () => {
     if (call) {
       try {
         await call.leave();
-        console.log("Left call successfully");
       } catch (error) {
-        console.error("Error leaving call:", error);
       }
     }
     
@@ -47,7 +46,7 @@ const OutgoingCall = () => {
   };
 
   useEffect(() => {
-    if (!client || !id || isJoining || call) return;
+    if (!client || !id) return;
 
     let isMounted = true;
     let callInstance: Call | null = null;
@@ -55,20 +54,27 @@ const OutgoingCall = () => {
     const joinCall = async () => {
       try {
         setIsJoining(true);
-        console.log("Joining call ", id, "mode:", mode);
         const newCall = client.call("default", id);
         callInstance = newCall;
         
-        // If mode is "create", we need to create and join the call (initiator)
-        // If mode is "join", we just join an existing call (receiver)
-        await newCall.join({ create: !isJoin });
+        if (!isJoin) {
+          await newCall.getOrCreate({
+            data: {
+              members: recipientId ? [{ user_id: recipientId }] : [],
+              custom: { type: callType ?? "audio", chatId },
+            },
+          });
+        }
+        await newCall.join({ create: false });
+        if ((callType ?? "audio") === "audio") {
+          await newCall.camera.disable();
+        }
         
         if (isMounted) {
           setCall(newCall);
           setIsJoining(false);
         }
       } catch (error) {
-        console.error("Error joining call:", error);
         if (isMounted) {
           setIsJoining(false);
         }
@@ -82,13 +88,11 @@ const OutgoingCall = () => {
       // Leave call on unmount to prevent duplicates
       if (callInstance) {
         callInstance.leave().then(() => {
-          console.log("Cleanup: Left call on unmount");
         }).catch((err) => {
-          console.error("Cleanup error:", err);
         });
       }
     };
-  }, [client, id, mode]);
+  }, [client, id, isJoin, recipientId, callType, chatId]);
 
   if (!call) {
     return (

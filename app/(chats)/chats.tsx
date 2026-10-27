@@ -46,9 +46,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import { COLORS } from "@/config/theme";
 import { ChatMessage } from "@/types/chat.types";
+import type { ReactionEmoji } from "@/types/chat.types";
 import { HeaderChat } from "@/components/common/chats/header-chat";
-import { io, Socket } from "socket.io-client";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGetChatsPerFriend } from "@/hooks/chats.hooks";
 import ChatPanicButton from "@/components/common/chats/panic-button-icon";
 import { toast } from "@/components/lib/toast-manager";
@@ -62,22 +61,40 @@ import GiftCompo from "@/components/common/chats/gift-compo";
 import { useUserStore } from "@/store/store";
 import * as ImagePicker from "expo-image-picker";
 import { useUploadService } from "@/hooks/auth-hooks.hooks";
+import {
+  getAllChatFriends,
+  getChatDetail,
+  reactToMessage,
+  sendChatMessage,
+} from "@/services/chats-service.service";
+import { getChatSocket } from "@/services/chat-socket.service";
+import type { Socket } from "socket.io-client";
 
 type Params = {
-  chatId: string;
-  userId: string;
+  chatId?: string;
+  userId?: string;
+  recipientId?: string;
   recieverId?: string;
   profileUrl?: string;
   name?: string;
 };
 
 const DEFAULT_USER_IMAGE = require("@/assets/user.png");
+const REACTIONS: ReactionEmoji[] = ["❤️", "👍", "😂", "😮", "😢", "🙏"];
 
 const Chats: React.FC = () => {
-  const { chatId, name, profileUrl, userId } =
+  const { chatId: routeChatId, name, profileUrl, userId, recipientId } =
     useLocalSearchParams<Params>() as unknown as Params;
-  const currentUserId = userId ?? "";
   const { user } = useUserStore();
+  const currentUserId = user?.id ?? "";
+  const otherUserId = recipientId ?? userId ?? "";
+  const [chatId, setChatId] = useState(routeChatId ?? "");
+  const [canSendMessages, setCanSendMessages] = useState(true);
+  const [isGroup, setIsGroup] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const loadingMoreRef = useRef(false);
 
   // state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -111,6 +128,64 @@ const Chats: React.FC = () => {
     }
   };
 
+  const normalizeMessage = useCallback(
+    (data: any): ChatMessage => ({
+      id: String(data?.id ?? data?.clientId ?? `message-${Date.now()}`),
+      clientId: data?.clientId,
+      type: data?.type ?? "text",
+      content: data?.content ?? data?.message ?? "",
+      edited: !!data?.edited,
+      deleted: !!data?.deleted,
+      fileId: data?.fileId ?? null,
+      userId: data?.userId ?? data?.fromUserId ?? "",
+      created_at: data?.created_at ?? new Date().toISOString(),
+      updated_at: data?.updated_at ?? new Date().toISOString(),
+      chatId: String(data?.chatId ?? chatId),
+      user: data?.user ?? null,
+      file: data?.file ?? null,
+      replyToMessageId: data?.replyToMessageId ?? null,
+      replyToMessage: data?.replyToMessage ?? data?.reply_to_message ?? null,
+      reactions: data?.reactions ?? [],
+    }),
+    [chatId]
+  );
+
+  const mergeMessages = useCallback((current: ChatMessage[], incoming: ChatMessage[]) => {
+    const merged = [...current];
+    incoming.forEach((message) => {
+      const index = merged.findIndex(
+        (existing) =>
+          existing.id === message.id ||
+          (!!message.clientId && existing.clientId === message.clientId) ||
+          (existing.id.startsWith("local-") &&
+            existing.userId === message.userId &&
+            existing.content === message.content &&
+            Math.abs(
+              new Date(existing.created_at).getTime() -
+                new Date(message.created_at).getTime()
+            ) < 15000)
+      );
+      if (index >= 0) merged[index] = { ...merged[index], ...message };
+      else merged.push(message);
+    });
+    return merged;
+  }, []);
+
+  useEffect(() => {
+    if (routeChatId) {
+      setChatId(routeChatId);
+      return;
+    }
+    if (!otherUserId) return;
+    getAllChatFriends().then((response) => {
+      const chats = response?.data ?? [];
+      const existing = chats.find((chat: any) =>
+        chat?.participants?.some((participant: any) => participant.userId === otherUserId)
+      );
+      if (existing?.id) setChatId(existing.id);
+    });
+  }, [routeChatId, otherUserId]);
+
   /* ---------------- fetch gifts ---------------- */
   useEffect(() => {
     let mounted = true;
@@ -118,10 +193,8 @@ const Chats: React.FC = () => {
       try {
         const res = await useGetAllGifts();
         if (!mounted) return;
-        console.log(res, "SSS");
         setGifts(res?.data ?? []);
       } catch (err) {
-        console.warn("Failed to fetch gifts", err);
       }
     };
     fetchGifts();
@@ -138,7 +211,6 @@ const Chats: React.FC = () => {
       const balance = Number(response?.data?.balance ?? 0);
       setHasMoney(balance >= 0.5);
     } catch (err) {
-      console.error("Failed to check wallet:", err);
       setHasMoney(false);
     } finally {
       setCheckingWallet(false);
@@ -150,13 +222,37 @@ const Chats: React.FC = () => {
   }, [checkWalletBalance]);
 
   /* ---------------- fetch messages ---------------- */
-  const fetchMessages = useCallback(async () => {
+  const fetchMessages = useCallback(async (nextPage = 1) => {
+    if (!chatId) {
+      setLoadingMessages(false);
+      return;
+    }
     try {
-      setLoadingMessages(true);
-      const res = await useGetChatsPerFriend({ id: chatId });
-      setMessages(res?.data ?? []);
+      if (nextPage === 1) setLoadingMessages(true);
+      else loadingMoreRef.current = true;
+      const [res, detail] = await Promise.all([
+        useGetChatsPerFriend({ id: chatId, page: nextPage, limit: 30 }),
+        nextPage === 1 ? getChatDetail({ id: chatId }) : Promise.resolve(null),
+      ]);
+      const batch = (res?.data ?? []).map(normalizeMessage);
+      setMessages((previous) =>
+        nextPage === 1
+          ? mergeMessages([], batch)
+          : mergeMessages(batch, previous)
+      );
+      const meta = res?.meta;
+      setPage(nextPage);
+      setHasMore(meta ? nextPage < meta.totalPages : batch.length === 30);
+      const chatDetail = detail?.data ?? detail;
+      if (chatDetail && typeof chatDetail.can_send_messages === "boolean") {
+        setCanSendMessages(chatDetail.can_send_messages);
+      }
+      setIsGroup(
+        chatDetail?.type === "group" ||
+          chatDetail?.isGroup === true ||
+          (chatDetail?.participants?.length ?? 0) > 2
+      );
     } catch (err) {
-      console.warn("Failed to fetch messages", err);
       toast.show({
         title: "Unable to load messages",
         type: "error",
@@ -164,16 +260,17 @@ const Chats: React.FC = () => {
       });
     } finally {
       setLoadingMessages(false);
+      loadingMoreRef.current = false;
       setRefreshing(false);
       // scroll after load
       scrollToBottom(false);
     }
-  }, [chatId]);
+  }, [chatId, mergeMessages, normalizeMessage]);
 
   // refresh when screen focused (implements "refresh every time I go there")
   useFocusEffect(
     useCallback(() => {
-      fetchMessages();
+      fetchMessages(1);
       checkWalletBalance();
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [chatId])
@@ -181,39 +278,24 @@ const Chats: React.FC = () => {
 
   useEffect(() => {
     // initial fetch
-    if (chatId) fetchMessages();
+    if (chatId) fetchMessages(1);
   }, [chatId, fetchMessages]);
 
   /* ---------------- setup socket ---------------- */
   useEffect(() => {
     let mounted = true;
+    let onError: ((data: any) => void) | undefined;
+    let onMessage: ((data: any) => void) | undefined;
+    let onReaction: ((data: any) => void) | undefined;
     const setup = async () => {
       try {
-        const token = await AsyncStorage.getItem("token");
-        if (!token) {
-          console.warn("No token available for socket connection");
-          return;
-        }
-
-        const socket = io(
-          process.env.EXPO_PUBLIC_API_URL ||
-          "https://1b67jdhr-9999.uks1.devtunnels.ms/chat",
-          {
-            transports: ["websocket"],
-            extraHeaders: { Authorization: `Bearer ${token}` },
-            reconnectionAttempts: 5,
-            reconnectionDelay: 1000,
-            autoConnect: true,
-          }
-        );
+        const socket = await getChatSocket();
+        if (!socket || !mounted) return;
 
         socketRef.current = socket;
+        if (chatId) socket.emit("join-chat", { chatId });
 
-        socket.on("connect", () => {
-          console.log("✅ Connected to chat server:", socket.id);
-        });
-
-        socket.on("error", (data: any) => {
+        onError = (data: any) => {
           setSending(false);
           toast.show({
             title: data?.message || "Socket error",
@@ -228,34 +310,36 @@ const Chats: React.FC = () => {
               duration: 4000,
             });
           }
-        });
-
-        socket.on("private-message", (data: any) => {
+        };
+        onMessage = (data: any) => {
           if (!mounted) return;
-          const normalized: ChatMessage = {
-            id: data?.id?.toString() ?? Date.now().toString(),
-            type: data?.type ?? "text",
-            content: data?.content ?? data?.message ?? "",
-            edited: !!data?.edited,
-            deleted: !!data?.deleted,
-            fileId: data?.fileId ?? null,
-            userId: data?.userId ?? data?.fromUserId ?? "",
-            created_at: data?.created_at ?? new Date().toISOString(),
-            updated_at: data?.updated_at ?? new Date().toISOString(),
-            chatId: chatId ?? "",
-            user: data?.user ?? null,
-            file: data?.file ?? null,
-          };
-
-          setMessages((prev) => [...prev, normalized]);
-
-          // scroll to bottom shortly after new message arrives
+          const payload = data?.data ?? data;
+          if (String(payload?.chatId ?? "") !== String(chatId)) return;
+          const normalized = normalizeMessage(payload);
+          setMessages((prev) => mergeMessages(prev, [normalized]));
           setTimeout(() => scrollToBottom(true), 100);
-        });
+        };
+        onReaction = (data: any) => {
+          const payload = data?.data ?? data;
+          if (String(payload?.chatId ?? chatId) !== String(chatId)) return;
+          const messageId = String(payload?.messageId ?? payload?.message?.id ?? "");
+          setMessages((previous) =>
+            previous.map((message) =>
+              message.id === messageId
+                ? {
+                    ...message,
+                    reactions: payload?.reactions ?? payload?.message?.reactions ?? [],
+                  }
+                : message
+            )
+          );
+        };
 
-        // Note: incoming-call is now handled globally in _layout.tsx IncomingCallListener
+        socket.on("error", onError);
+        socket.on("private-message", onMessage);
+        socket.on("chat-message", onMessage);
+        socket.on("message-reaction", onReaction);
       } catch (err) {
-        console.warn("Socket setup failed", err);
       }
     };
 
@@ -265,14 +349,17 @@ const Chats: React.FC = () => {
       mounted = false;
       const sock = socketRef.current;
       if (sock) {
-        sock.off("private-message");
-        sock.off("connect");
-        sock.off("error");
-        sock.disconnect();
+        if (chatId) sock.emit("leave-chat", { chatId });
+        if (onMessage) {
+          sock.off("private-message", onMessage);
+          sock.off("chat-message", onMessage);
+        }
+        if (onReaction) sock.off("message-reaction", onReaction);
+        if (onError) sock.off("error", onError);
       }
       socketRef.current = null;
     };
-  }, [chatId]);
+  }, [chatId, mergeMessages, normalizeMessage]);
 
   /* ---------------- sort messages ----------------
      all messages in chronological order (announcements, calls, and regular messages mixed)
@@ -305,6 +392,22 @@ const Chats: React.FC = () => {
         });
         return;
       }
+      if (!canSendMessages) {
+        toast.show({
+          title: "You cannot send messages in this chat.",
+          type: "error",
+          duration: 2500,
+        });
+        return;
+      }
+      if (!chatId) {
+        toast.show({
+          title: "This conversation is not ready yet.",
+          type: "error",
+          duration: 2000,
+        });
+        return;
+      }
 
       // always scroll to bottom before sending
       scrollToBottom(true);
@@ -328,14 +431,6 @@ const Chats: React.FC = () => {
       }
 
       const sock = socketRef.current;
-      if (!sock || sock.disconnected) {
-        toast.show({
-          title: "Not connected to chat server.",
-          type: "error",
-          duration: 2000,
-        });
-        return;
-      }
 
       setSending(true);
       try {
@@ -354,12 +449,13 @@ const Chats: React.FC = () => {
           uploadedFileUrl = res?.data?.[0]?.url ?? null;
 
           // log id after upload (you requested)
-          console.log("uploaded image id:", uploadedFileId);
         }
 
         // optimistic message to UI
+        const clientId = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const optimisticMsg: ChatMessage = {
-          id: `local-${Date.now()}`,
+          id: clientId,
+          clientId,
           type: "text", // keep as text per your instruction
           content: msg,
           edited: false,
@@ -371,30 +467,67 @@ const Chats: React.FC = () => {
           chatId: chatId ?? "",
           user: null,
           file: uploadedFileUrl ? { url: uploadedFileUrl } : null,
+          replyToMessageId: replyingTo?.id ?? null,
+          replyToMessage: replyingTo
+            ? {
+                id: replyingTo.id,
+                content: replyingTo.content,
+                deleted: replyingTo.deleted,
+                userId: replyingTo.userId,
+              }
+            : null,
+          reactions: [],
         };
 
         setMessages((prev) => [...prev, optimisticMsg]);
         Keyboard.dismiss();
 
-        sock.emit(
-          "private-message",
-          {
-            toUserId: userId,
-            message: msg,
-            fileId: uploadedFileId,
-          },
-          // optional ack callback
-          (response: any) => {
-            // here you can update the optimistic message if server returns full message
-            // For now we simply stop the sending state and scroll
-            setSending(false);
-            scrollToBottom(true);
+        setReplyingTo(null);
+        const payload = {
+          chatId,
+          toUserId: otherUserId || undefined,
+          message: msg,
+          content: msg,
+          fileId: uploadedFileId,
+          replyToMessageId: optimisticMsg.replyToMessageId,
+          clientId,
+        };
+
+        let response: any;
+        if (sock?.connected) {
+          try {
+            response = await sock
+              .timeout(5000)
+              .emitWithAck(isGroup ? "chat-message" : "private-message", payload);
+          } catch {
+            response = await sendChatMessage({
+              chatId,
+              content: msg,
+              fileId: uploadedFileId,
+              replyToMessageId: optimisticMsg.replyToMessageId,
+              toUserId: otherUserId || undefined,
+              clientId,
+            });
           }
-        );
+        } else {
+          response = await sendChatMessage({
+            chatId,
+            content: msg,
+            fileId: uploadedFileId,
+            replyToMessageId: optimisticMsg.replyToMessageId,
+            toUserId: otherUserId || undefined,
+            clientId,
+          });
+        }
+        const serverMessage = response?.data ?? response;
+        if (serverMessage?.id) {
+          setMessages((previous) =>
+            mergeMessages(previous, [normalizeMessage({ ...serverMessage, clientId })])
+          );
+        }
         setSending(false);
         // fetchMessages();
       } catch (err) {
-        console.warn("Send failed", err);
         toast.show({
           title: "Something went wrong while sending.",
           type: "error",
@@ -403,14 +536,52 @@ const Chats: React.FC = () => {
         setSending(false);
       }
     },
-    [chatId, currentUserId, userId, sending, hasMoney, user]
+    [
+      canSendMessages,
+      chatId,
+      currentUserId,
+      hasMoney,
+      isGroup,
+      mergeMessages,
+      normalizeMessage,
+      otherUserId,
+      replyingTo,
+      sending,
+      user,
+    ]
   );
 
   /* ---------------- pull-to-refresh handler ---------------- */
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchMessages();
+    fetchMessages(1);
   }, [fetchMessages]);
+
+  const loadOlderMessages = useCallback(() => {
+    if (hasMore && !loadingMoreRef.current && !loadingMessages) {
+      fetchMessages(page + 1);
+    }
+  }, [fetchMessages, hasMore, loadingMessages, page]);
+
+  const handleReaction = useCallback(
+    async (message: ChatMessage, emoji: ReactionEmoji) => {
+      if (message.id.startsWith("local-")) return;
+      try {
+        const response = await reactToMessage({ messageId: message.id, emoji });
+        const payload = response?.data ?? response;
+        if (payload?.reactions) {
+          setMessages((previous) =>
+            previous.map((item) =>
+              item.id === message.id ? { ...item, reactions: payload.reactions } : item
+            )
+          );
+        }
+      } catch {
+        toast.show({ title: "Unable to update reaction.", type: "error" });
+      }
+    },
+    []
+  );
 
   /* ---------------- Render helpers ---------------- */
   const renderEmpty = () => {
@@ -466,7 +637,7 @@ const Chats: React.FC = () => {
           message={messages[messages.length - 1]}
           profileUrl={profileUrl ?? ""}
           name={name ?? "Unknown"}
-          recipientId={currentUserId}
+          recipientId={otherUserId}
           chatId={chatId}
         />
 
@@ -481,8 +652,14 @@ const Chats: React.FC = () => {
               item={item}
               currentUserId={currentUserId}
               index={index}
+              onReply={setReplyingTo}
+              onReaction={handleReaction}
             />
           )}
+          onScroll={({ nativeEvent }) => {
+            if (nativeEvent.contentOffset.y < 80) loadOlderMessages();
+          }}
+          scrollEventThrottle={200}
           ListEmptyComponent={renderEmpty}
           keyboardShouldPersistTaps="handled"
           refreshControl={
@@ -548,13 +725,15 @@ const Chats: React.FC = () => {
           >
             <ActivityIndicator size="small" color={COLORS.primary} />
           </ThemedView>
-        ) : hasMoney ? (
+        ) : hasMoney && canSendMessages ? (
           <ChatInput
             onSend={handleSend}
             onGiftPress={() => bottomSheetRef.current?.expand()}
             sending={sending}
             // expose the localImage setter so you can set it elsewhere if needed
             setLocalImage={setLocalImage}
+            replyingTo={replyingTo}
+            onCancelReply={() => setReplyingTo(null)}
           />
         ) : (
           <ThemedView
@@ -566,9 +745,11 @@ const Chats: React.FC = () => {
             borderTopColor="#eee"
           >
             <ThemedText fontSize={14} fontWeight="600" textAlign="center">
-              Insufficient balance — fund your wallet to chat.
+              {canSendMessages
+                ? "Insufficient balance — fund your wallet to chat."
+                : "Messaging is disabled for this chat."}
             </ThemedText>
-            <TouchableOpacity
+            {canSendMessages && <TouchableOpacity
               onPress={() => router.push("/(settings)/wallet/fund-wallet")}
               style={{
                 marginTop: 12,
@@ -581,7 +762,7 @@ const Chats: React.FC = () => {
               <ThemedText color="#fff" fontWeight="600">
                 Fund Wallet
               </ThemedText>
-            </TouchableOpacity>
+            </TouchableOpacity>}
           </ThemedView>
         )}
       </SafeAreaView>
@@ -595,9 +776,19 @@ export const MessageBubble: React.FC<{
   currentUserId: string;
   profileUrl?: string;
   index?: number;
-}> = ({ item, currentUserId, profileUrl, index = 0 }) => {
+  onReply?: (message: ChatMessage) => void;
+  onReaction?: (message: ChatMessage, emoji: ReactionEmoji) => void;
+}> = ({
+  item,
+  currentUserId,
+  profileUrl,
+  index = 0,
+  onReply,
+  onReaction,
+}) => {
   const isMe = item.userId === currentUserId;
   const { user } = useUserStore();
+  const [showActions, setShowActions] = useState(false);
 
   // Handle call history display (WhatsApp style)
   //@ts-ignore
@@ -723,7 +914,7 @@ export const MessageBubble: React.FC<{
       }
       style={[
         styles.messageRow,
-        isMe ? styles.otherMessageRow : styles.myMessageRow,
+        isMe ? styles.myMessageRow : styles.otherMessageRow,
       ]}
     >
       {/* sender avatar on left when sender is me (as requested previously) */}
@@ -731,8 +922,8 @@ export const MessageBubble: React.FC<{
         <Animated.View entering={FadeIn.duration(300).delay(100)}>
           <Image
             source={
-              profileUrl && user?.profile_picture?.url
-                ? { uri: generateURL({ url: profileUrl }) }
+              user?.profile_picture?.url
+                ? { uri: generateURL({ url: user.profile_picture.url }) }
                 : DEFAULT_USER_IMAGE
             }
             defaultSource={DEFAULT_USER_IMAGE}
@@ -751,29 +942,77 @@ export const MessageBubble: React.FC<{
         </Animated.View>
       ) : null}
 
-      {!item.file?.url && item?.content && (
+      {(item.replyToMessage || item.content) && (
         <Animated.View
           entering={FadeIn.duration(300).delay(50)}
           style={[
             styles.messageBubble,
-            isMe ? styles.otherMessage : styles.myMessage,
+            isMe ? styles.myMessage : styles.otherMessage,
           ]}
         >
-          <ThemedText color={isMe ? "#000" : "#fff"}>{item.content}</ThemedText>
-
-          {item.created_at && (
-            <ThemedText
-              fontSize={8}
-              color={isMe ? "#666" : "#eee"}
-              marginTop={1}
-              alignSelf="flex-end"
-              opacity={0.8}
-            >
-              {new Date(item.created_at).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onLongPress={() => setShowActions((visible) => !visible)}
+          >
+            {item.replyToMessage && (
+              <View style={styles.quote}>
+                <ThemedText fontSize={11} color={isMe ? "#eee" : "#666"}>
+                  {item.replyToMessage.deleted
+                    ? "Deleted message"
+                    : item.replyToMessage.content || "Attachment"}
+                </ThemedText>
+              </View>
+            )}
+            <ThemedText color={isMe ? "#fff" : "#000"}>
+              {item.deleted ? "This message was deleted" : item.content}
             </ThemedText>
+
+            {item.created_at && (
+              <ThemedText
+                fontSize={8}
+                color={isMe ? "#eee" : "#666"}
+                marginTop={1}
+                alignSelf="flex-end"
+                opacity={0.8}
+              >
+                {new Date(item.created_at).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </ThemedText>
+            )}
+          </TouchableOpacity>
+          {!!item.reactions?.length && (
+            <View style={styles.reactionSummary}>
+              <ThemedText fontSize={12}>
+                {Array.from(new Set(item.reactions.map((reaction) => reaction.emoji))).join(" ")}
+              </ThemedText>
+            </View>
+          )}
+          {showActions && !item.deleted && (
+            <View style={styles.messageActions}>
+              {REACTIONS.map((emoji) => (
+                <TouchableOpacity
+                  key={emoji}
+                  onPress={() => {
+                    onReaction?.(item, emoji);
+                    setShowActions(false);
+                  }}
+                >
+                  <ThemedText fontSize={18}>{emoji}</ThemedText>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                onPress={() => {
+                  onReply?.(item);
+                  setShowActions(false);
+                }}
+              >
+                <ThemedText fontSize={12} weight="semibold">
+                  Reply
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
           )}
         </Animated.View>
       )}
@@ -781,8 +1020,8 @@ export const MessageBubble: React.FC<{
         <Animated.View entering={FadeIn.duration(300).delay(100)}>
           <Image
             source={
-              user
-                ? { uri: generateURL({ url: user.profile_picture.url }) }
+              profileUrl
+                ? { uri: generateURL({ url: profileUrl }) }
                 : DEFAULT_USER_IMAGE
             }
             style={styles.avatar}
@@ -799,7 +1038,16 @@ const ChatInput: React.FC<{
   onGiftPress: () => void;
   sending?: boolean;
   setLocalImage?: (uri: string | null) => void; // optional setter exposed to parent
-}> = ({ onSend, onGiftPress, sending = false, setLocalImage }) => {
+  replyingTo?: ChatMessage | null;
+  onCancelReply?: () => void;
+}> = ({
+  onSend,
+  onGiftPress,
+  sending = false,
+  setLocalImage,
+  replyingTo,
+  onCancelReply,
+}) => {
   const [text, setText] = useState("");
   const [imageUri, setImageUri] = useState<string | null>(null);
 
@@ -837,7 +1085,6 @@ const ChatInput: React.FC<{
         if (setLocalImage) setLocalImage(result.assets[0].uri);
       }
     } catch (err) {
-      console.warn("Image picker error:", err);
       toast.show({
         title: "Error selecting image",
         type: "error",
@@ -863,6 +1110,21 @@ const ChatInput: React.FC<{
       padding={10}
       gap={6}
     >
+      {replyingTo && (
+        <View style={styles.replyPreview}>
+          <View style={{ flex: 1 }}>
+            <ThemedText fontSize={11} weight="semibold">
+              Replying to message
+            </ThemedText>
+            <ThemedText numberOfLines={1} fontSize={12} color="#666">
+              {replyingTo.deleted ? "Deleted message" : replyingTo.content || "Attachment"}
+            </ThemedText>
+          </View>
+          <TouchableOpacity onPress={onCancelReply}>
+            <CloseCircle size={20} color="#666" />
+          </TouchableOpacity>
+        </View>
+      )}
       {/* image preview */}
       {imageUri && (
         <View
@@ -1029,6 +1291,36 @@ const styles = StyleSheet.create({
     backgroundColor: "#f1f1f1",
     borderBottomLeftRadius: 6,
     borderBottomRightRadius: 18,
+  },
+  quote: {
+    borderLeftWidth: 3,
+    borderLeftColor: "rgba(255,255,255,0.7)",
+    paddingLeft: 8,
+    marginBottom: 6,
+    opacity: 0.9,
+  },
+  messageActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 8,
+  },
+  reactionSummary: {
+    alignSelf: "flex-end",
+    marginTop: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    backgroundColor: "#fff",
+  },
+  replyPreview: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary,
+    backgroundColor: "#f3f3f3",
+    borderRadius: 8,
   },
   // WhatsApp-style call history
   callHistoryContainer: {

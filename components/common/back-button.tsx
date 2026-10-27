@@ -1,29 +1,31 @@
 import { Pressable, StyleSheet } from "react-native";
 import React from "react";
-import ThemedView from "../ui/themed-view";
-import { ArrowLeft, ArrowLeft2 } from "iconsax-react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import useTheme from "@/hooks/use-theme";
 
 const BackButton = () => {
+  const theme = useTheme();
+
   return (
     <Pressable
-      onPress={() => {
-        router.back();
-      }}
+      onPress={() => router.back()}
+      hitSlop={12}
+      style={[styles.button, { backgroundColor: theme.colors.soft }]}
     >
-      <ThemedView
-        borderColor={"#ddd"}
-        borderWidth={0.3}
-        padding={15}
-        borderRadius={10}
-        alignSelf="flex-start"
-      >
-        <ArrowLeft2 size={20} color="#aaa" />
-      </ThemedView>
+      <Ionicons name="chevron-back" size={23} color={theme.colors.text} />
     </Pressable>
   );
 };
 
 export default BackButton;
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  button: {
+    width: 40,
+    height: 40,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});

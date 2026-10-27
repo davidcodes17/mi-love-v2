@@ -62,22 +62,22 @@ export interface UserProfileR {
   };
   auth_provider: string;
   fileId: string;
+  isFriend?: boolean;
 }
 
 export interface EditProfilePayload {
-  first_name: string;
-  last_name: string;
-  username: string;
-  country: string;
-  profile_picture_id: string;
-  phone_number: string;
-  emergency_contact: string;
-  date_of_birth: string; // ISO date string, e.g., "1990-05-15"
-  home_address: string;
-  gender: string;
-  bio: string;
-  added_interests: string[];
-  removed_interests: string[];
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+  country?: string;
+  profile_picture_id?: string;
+  phone_number?: string;
+  emergency_contact?: string;
+  date_of_birth?: string;
+  home_address?: string;
+  bio?: string;
+  added_interests?: string[];
+  removed_interests?: string[];
 }
 
 export interface PanicButtonPayload {

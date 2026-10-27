@@ -18,8 +18,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   useCreateAccountService,
   useNotificationService,
-  useSendOtp,
+  useUploadService,
 } from "@/hooks/auth-hooks.hooks";
+import { useUpdateAccountDetails } from "@/hooks/account-hooks.hooks";
+import { AUTH_STORAGE_KEYS } from "@/services/auth-service.service";
 import { toast } from "@/components/lib/toast-manager";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
@@ -89,7 +91,6 @@ const Step9 = ({
 
     const responseListener =
       Notifications.addNotificationResponseReceivedListener((response) => {
-        console.log(response);
       });
 
     return () => {
@@ -100,9 +101,34 @@ const Step9 = ({
 
   const createAccount = async () => {
     try {
+      const requiredValues = [
+        values.email,
+        values.otp,
+        values.firstName,
+        values.lastName,
+        values.username,
+        values.emergencyContact,
+        values.password,
+        values.gender,
+        values.dob,
+        values.profileImage,
+        values.home_address,
+        values.country,
+        values.phonenumber,
+        values.bio,
+      ];
+      if (
+        requiredValues.some(
+          (value) => typeof value !== "string" || !value.trim()
+        ) ||
+        !Array.isArray(values.interests) ||
+        values.interests.length === 0
+      ) {
+        toast.error("Please complete all required signup fields.");
+        return;
+      }
       setLoading(true);
-      const token = await AsyncStorage.getItem("token");
-      // console.log(token,"TKN")
+      const token = await AsyncStorage.getItem(AUTH_STORAGE_KEYS.signupToken);
       if (!token) {
         setLoading(false);
         toast.error("No Token Found");
@@ -117,7 +143,7 @@ const Step9 = ({
         username: values.username,
         emergency_contact: values.emergencyContact,
         bio: values.bio,
-        profile_picture: values.profileImage,
+        profile_picture: "",
         home_address: values.home_address,
         interests: values.interests,
         phone_number: values.phonenumber,
@@ -126,11 +152,9 @@ const Step9 = ({
         date_of_birth: new Date(values.dob).toISOString(),
       };
 
-      console.log(data, "DATA");
 
       const response = await useCreateAccountService({ data });
 
-      console.log(response);
       if (response?.access_token) {
         setLoading(false);
         toast.show({
@@ -139,15 +163,39 @@ const Step9 = ({
           position: "bottom",
           visibilityTime: 4000,
         });
-        await AsyncStorage.setItem("token", response?.access_token);
+        await AsyncStorage.setItem(
+          AUTH_STORAGE_KEYS.accessToken,
+          response.access_token
+        );
+        await AsyncStorage.removeItem(AUTH_STORAGE_KEYS.signupToken);
+
+        if (values.profileImage) {
+          try {
+            const uploadResponse = await useUploadService({
+              file: {
+                uri: values.profileImage,
+                name: "profile.jpg",
+                type: "image/jpeg",
+              },
+            });
+            const profilePictureId = uploadResponse?.data?.[0]?.id;
+            if (profilePictureId) {
+              await useUpdateAccountDetails({
+                data: { profile_picture_id: profilePictureId },
+              });
+            }
+          } catch {
+            toast.error(
+              "Account created, but the profile photo could not be uploaded."
+            );
+          }
+        }
         
         // Send FCM token after account creation
         if (expoPushToken) {
           try {
             await useNotificationService({ token: expoPushToken });
-            console.log("✅ FCM token sent after account creation");
           } catch (fcmError) {
-            console.error("Failed to send FCM token:", fcmError);
             // Don't block account creation if FCM fails
           }
         } else {
@@ -156,9 +204,7 @@ const Step9 = ({
             if (token) {
               try {
                 await useNotificationService({ token });
-                console.log("✅ FCM token sent after account creation (delayed)");
               } catch (fcmError) {
-                console.error("Failed to send FCM token (delayed):", fcmError);
               }
             }
           });
@@ -185,7 +231,6 @@ const Step9 = ({
       }
     } catch (error: any) {
       setLoading(false);
-      console.log(error);
       toast.error("Check your Internet Connection");
     }
   };

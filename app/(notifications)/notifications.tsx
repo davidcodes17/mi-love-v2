@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   SafeAreaView,
   FlatList,
@@ -7,13 +7,16 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { useFocusEffect } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 import { Notification as NotificationIcon } from "iconsax-react-native";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import { COLORS } from "@/config/theme";
 import {
   fetchNotificationsService,
   markNotificationAsReadService,
+  markAllNotificationsAsReadService,
+  getUnreadCountService,
   Notification,
 } from "@/services/notification-service.service";
 import {
@@ -21,22 +24,29 @@ import {
   getNotificationIcon,
   formatNotificationTime,
 } from "@/utils/notification-router.utils";
+import {
+  decrementBadgeCount,
+  updateNotificationBadgeCount,
+} from "@/utils/badge-utils.utils";
 
 export default function NotificationsScreen() {
-  const navigation = useNavigation();
+  const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadingRef = useRef(false);
+  const hasMoreRef = useRef(true);
 
   // Load notifications from API
   const loadNotifications = useCallback(
     async (pageNum = 1, isRefresh = false) => {
-      if (loading || (!hasMore && !isRefresh)) return;
+      if (loadingRef.current || (!hasMoreRef.current && !isRefresh)) return;
 
       try {
+        loadingRef.current = true;
         setLoading(true);
         setError(null);
         const response = await fetchNotificationsService(pageNum, 20);
@@ -48,22 +58,24 @@ export default function NotificationsScreen() {
             setNotifications((prev) => [...prev, ...response.data]);
           }
 
-          setHasMore(
-            response.meta?.page < response.meta?.totalPages
-          );
+          const more = response.meta?.page < response.meta?.totalPages;
+          hasMoreRef.current = more;
+          setHasMore(more);
           setPage(pageNum);
+          const unread = await getUnreadCountService();
+          await updateNotificationBadgeCount(unread);
         } else {
           throw new Error(response?.error || "Failed to load notifications");
         }
       } catch (err: any) {
-        console.error("Error loading notifications:", err);
         setError(err.message || "Failed to load notifications");
       } finally {
+        loadingRef.current = false;
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [loading, hasMore]
+    []
   );
 
   // Load notifications when screen is focused
@@ -71,6 +83,7 @@ export default function NotificationsScreen() {
     useCallback(() => {
       setPage(1);
       setHasMore(true);
+      hasMoreRef.current = true;
       loadNotifications(1, true);
     }, [loadNotifications])
   );
@@ -79,6 +92,7 @@ export default function NotificationsScreen() {
     setRefreshing(true);
     setPage(1);
     setHasMore(true);
+    hasMoreRef.current = true;
     loadNotifications(1, true);
   }, [loadNotifications]);
 
@@ -93,23 +107,33 @@ export default function NotificationsScreen() {
       try {
         // Mark as read if not already read
         if (!notification.is_read) {
-          await markNotificationAsReadService(notification.id);
+          const result = await markNotificationAsReadService(notification.id);
+          if (result?.error) throw new Error(result.error);
           // Update local state
           setNotifications((prev) =>
             prev.map((n) =>
               n.id === notification.id ? { ...n, is_read: true } : n
             )
           );
+          await decrementBadgeCount();
         }
 
         // Navigate based on notification type
-        handleNotificationNavigation(notification, navigation);
+        handleNotificationNavigation(notification, router);
       } catch (error) {
-        console.error("Error handling notification press:", error);
       }
     },
-    [navigation]
+    [router]
   );
+
+  const markAllRead = useCallback(async () => {
+    const result = await markAllNotificationsAsReadService();
+    if (result?.error) return;
+    setNotifications((current) =>
+      current.map((notification) => ({ ...notification, is_read: true }))
+    );
+    await updateNotificationBadgeCount(0);
+  }, []);
 
   const renderNotificationItem = useCallback(
     ({ item }: { item: Notification }) => (
@@ -255,12 +279,21 @@ export default function NotificationsScreen() {
           flexDirection="row"
           alignItems="center"
           gap={10}
-          justifyContent="center"
+          justifyContent="space-between"
         >
-          <NotificationIcon color={COLORS.primary} size={30} variant="Bold" />
-          <ThemedText fontSize={20} fontWeight="700">
-            Notifications
-          </ThemedText>
+          <ThemedView flexDirection="row" alignItems="center" gap={10}>
+            <NotificationIcon color={COLORS.primary} size={30} variant="Bold" />
+            <ThemedText fontSize={20} fontWeight="700">
+              Notifications
+            </ThemedText>
+          </ThemedView>
+          {notifications.some((notification) => !notification.is_read) && (
+            <TouchableOpacity onPress={markAllRead}>
+              <ThemedText fontSize={13} fontWeight="600" color={COLORS.primary}>
+                Mark all read
+              </ThemedText>
+            </TouchableOpacity>
+          )}
         </ThemedView>
 
         {/* Notifications List */}

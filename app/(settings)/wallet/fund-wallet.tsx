@@ -7,20 +7,14 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router, useLocalSearchParams } from "expo-router";
+import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import BackButton from "@/components/common/back-button";
 import InputField from "@/components/common/input-field";
 import NativeButton from "@/components/ui/native-button";
-import {
-  Wallet1,
-  CardCoin,
-  ArrowLeft2,
-  MoneyRecive,
-  MoneySend,
-} from "iconsax-react-native";
+import { Wallet1, CardCoin, MoneyRecive } from "iconsax-react-native";
 import { useGeneratePaymentLink } from "@/hooks/wallet-hooks.hooks";
 import { COLORS } from "@/config/theme";
 import { toast } from "@/components/lib/toast-manager";
@@ -28,6 +22,7 @@ import { toast } from "@/components/lib/toast-manager";
 const FundWallet = () => {
   const [amount, setAmount] = useState("");
   const [loadingFund, setLoadingFund] = useState(false);
+  const [provider, setProvider] = useState<"paystack" | "flutterwave">("paystack");
 
   // Quick amount options (in dollars, starting from $5)
   const quickAmounts = [5, 10, 25, 50, 100, 250];
@@ -50,6 +45,10 @@ const FundWallet = () => {
       toast.error("Minimum funding amount is $5");
       return;
     }
+    if (amt > 1000) {
+      toast.error("Maximum funding amount is $1,000");
+      return;
+    }
 
     try {
       setLoadingFund(true);
@@ -58,26 +57,24 @@ const FundWallet = () => {
       const response: any = await useGeneratePaymentLink({
         data: { 
           amount: amt,
-          redirect_url: redirectUrl, // Include redirect URL
+          callbackUrl: redirectUrl,
+          provider,
         },
       });
       
-      if (response?.link) {
-        // Use WebBrowser.openBrowserAsync which will handle the redirect back to the app
-        const result = await WebBrowser.openBrowserAsync(response.link);
-        
-        // Log the result for debugging
-        console.log("WebBrowser result:", result);
-        
-        // If user dismissed the browser, show a message
-        if (result.type === "dismiss") {
+      const paymentUrl = response?.link ?? response?.data?.link ?? response?.url;
+      if (paymentUrl) {
+        const result = await WebBrowser.openAuthSessionAsync(
+          paymentUrl,
+          redirectUrl
+        );
+        if (result.type === "cancel" || result.type === "dismiss") {
           toast.info("Payment cancelled");
         }
       } else {
         toast.error(response?.message || "Failed to generate payment link");
       }
     } catch (err: any) {
-      console.error("Fund wallet failed:", err);
       toast.error("Unable to process funding request. Please try again.");
     } finally {
       setLoadingFund(false);
@@ -190,6 +187,36 @@ const FundWallet = () => {
                 label="Amount ($)"
               />
 
+              <ThemedText fontSize={14} color="#6B7280" marginTop={18} marginBottom={10}>
+                Payment provider
+              </ThemedText>
+              <ThemedView flexDirection="row" gap={10}>
+                {(["paystack", "flutterwave"] as const).map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    onPress={() => setProvider(option)}
+                    style={{
+                      flex: 1,
+                      borderWidth: 1,
+                      borderColor: provider === option ? COLORS.primary : "#E5E7EB",
+                      backgroundColor: provider === option ? COLORS.primary + "12" : "#fff",
+                      borderRadius: 12,
+                      paddingVertical: 12,
+                      alignItems: "center",
+                    }}
+                  >
+                    <ThemedText
+                      fontSize={13}
+                      fontWeight="600"
+                      color={provider === option ? COLORS.primary : "#374151"}
+                      textTransform="capitalize"
+                    >
+                      {option}
+                    </ThemedText>
+                  </TouchableOpacity>
+                ))}
+              </ThemedView>
+
               {/* Quick Amount Buttons */}
               <ThemedView marginTop={20}>
                 <ThemedText
@@ -277,7 +304,12 @@ const FundWallet = () => {
             {/* Fund Button */}
             <TouchableOpacity
               onPress={handleFund}
-              disabled={loadingFund || !amount || parseInt(amount.replace(/,/g, ""), 10) < 5}
+              disabled={
+                loadingFund ||
+                !amount ||
+                parseInt(amount.replace(/,/g, ""), 10) < 5 ||
+                parseInt(amount.replace(/,/g, ""), 10) > 1000
+              }
               style={{
                 backgroundColor: loadingFund || !amount || parseInt(amount.replace(/,/g, ""), 10) < 5 
                   ? COLORS.primary + "80" 

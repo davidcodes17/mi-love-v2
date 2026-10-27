@@ -5,13 +5,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
 import NativeButton from "@/components/ui/native-button";
 import { COLORS } from "@/config/theme";
-import { fetchSingleTransaction } from "@/services/wallet-service.service";
-import { Check, CloseCircle } from "iconsax-react-native";
+import {
+  useConfirmWalletTransaction,
+  useGetWallet,
+} from "@/hooks/wallet-hooks.hooks";
+import { Check, CloseCircle, Clock } from "iconsax-react-native";
 
 interface TransactionData {
   id: string;
   type: string;
-  status: "completed" | "failed" | "pending";
+  status: "success" | "completed" | "failed" | "cancelled" | "pending";
   amount: number;
   currency: string;
   created_at: string;
@@ -20,41 +23,74 @@ interface TransactionData {
 }
 
 export default function PaymentCallback() {
-  const { status, transaction_id, reference } = useLocalSearchParams<{
+  const params = useLocalSearchParams<{
     status?: string;
     transaction_id?: string;
+    transactionId?: string;
     reference?: string;
+    tx_ref?: string;
   }>();
+  const status = Array.isArray(params.status) ? params.status[0] : params.status;
+  const transactionId =
+    (Array.isArray(params.transactionId) ? params.transactionId[0] : params.transactionId) ||
+    (Array.isArray(params.transaction_id) ? params.transaction_id[0] : params.transaction_id);
+  const reference =
+    (Array.isArray(params.reference) ? params.reference[0] : params.reference) ||
+    (Array.isArray(params.tx_ref) ? params.tx_ref[0] : params.tx_ref);
 
   const [loading, setLoading] = useState(true);
   const [transaction, setTransaction] = useState<TransactionData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [paymentStatus, setPaymentStatus] = useState<"success" | "failed" | "pending">("pending");
+  const [paymentStatus, setPaymentStatus] = useState<
+    "success" | "failed" | "cancelled" | "pending"
+  >("pending");
 
   useEffect(() => {
     const fetchTransactionDetails = async () => {
       try {
         setLoading(true);
 
-        // Determine if payment was successful
-        const isSuccess = status === "successful" || status === "completed";
+        const normalizedStatus = (status || "pending").toLowerCase();
+        const callbackStatus =
+          normalizedStatus === "successful" || normalizedStatus === "completed"
+            ? "success"
+            : normalizedStatus === "cancelled" || normalizedStatus === "canceled"
+              ? "cancelled"
+              : normalizedStatus === "failed"
+                ? "failed"
+                : normalizedStatus === "success"
+                  ? "success"
+                  : "pending";
 
-        if (isSuccess && transaction_id) {
-          // Fetch transaction details from backend
-          const response = await fetchSingleTransaction({ id: transaction_id });
+        if (transactionId || reference) {
+          const response = await useConfirmWalletTransaction({
+            id: transactionId,
+            reference,
+          });
+          const confirmed = response?.data ?? response;
 
-          if (response?.data) {
-            setTransaction(response.data);
-            setPaymentStatus("success");
-          } else if (response?.error) {
+          if (confirmed && !confirmed.error) {
+            setTransaction(confirmed as TransactionData);
+            const confirmedStatus = String(confirmed.status || callbackStatus).toLowerCase();
+            setPaymentStatus(
+              confirmedStatus === "completed" || confirmedStatus === "successful"
+                ? "success"
+                : confirmedStatus === "cancelled"
+                  ? "cancelled"
+                  : confirmedStatus === "failed"
+                    ? "failed"
+                    : callbackStatus
+            );
+            await useGetWallet();
+          } else if (response?.error && callbackStatus === "success") {
             setError(response.error);
             setPaymentStatus("failed");
           } else {
-            setPaymentStatus("success");
+            setPaymentStatus(callbackStatus);
             setTransaction({
-              id: transaction_id,
+              id: transactionId || reference || "pending",
               type: "wallet_funding",
-              status: "completed",
+              status: callbackStatus,
               amount: 0,
               currency: "USD",
               created_at: new Date().toISOString(),
@@ -62,11 +98,16 @@ export default function PaymentCallback() {
             });
           }
         } else {
-          setPaymentStatus("failed");
-          setError("Payment was cancelled or failed. Please try again.");
+          setPaymentStatus(callbackStatus);
+          if (callbackStatus === "failed" || callbackStatus === "cancelled") {
+            setError(
+              callbackStatus === "cancelled"
+                ? "Payment was cancelled."
+                : "Payment failed. Please try again."
+            );
+          }
         }
       } catch (err: any) {
-        console.error("Payment callback error:", err);
         setPaymentStatus("failed");
         setError(err?.message || "Failed to process payment callback");
       } finally {
@@ -75,7 +116,7 @@ export default function PaymentCallback() {
     };
 
     fetchTransactionDetails();
-  }, [status, transaction_id, reference]);
+  }, [status, transactionId, reference]);
 
   if (loading) {
     return (
@@ -99,7 +140,13 @@ export default function PaymentCallback() {
           padding={30}
           alignItems="center"
           justifyContent="center"
-          backgroundColor={paymentStatus === "success" ? "#e7f5e5" : "#ffe7e7"}
+          backgroundColor={
+            paymentStatus === "success"
+              ? "#e7f5e5"
+              : paymentStatus === "pending"
+                ? "#FEF3C7"
+                : "#ffe7e7"
+          }
         >
           {paymentStatus === "success" ? (
             <>
@@ -121,6 +168,16 @@ export default function PaymentCallback() {
                 Your wallet has been funded successfully
               </ThemedText>
             </>
+          ) : paymentStatus === "pending" ? (
+            <>
+              <Clock size={60} color="#F59E0B" variant="Bold" />
+              <ThemedText fontSize={22} fontWeight="bold" marginTop={16} color="#B45309">
+                Payment Pending
+              </ThemedText>
+              <ThemedText fontSize={14} color="#92400E" marginTop={8} textAlign="center">
+                We are waiting for confirmation from your payment provider.
+              </ThemedText>
+            </>
           ) : (
             <>
               <CloseCircle size={60} color="#ff3b30" variant="Bold" />
@@ -130,7 +187,7 @@ export default function PaymentCallback() {
                 marginTop={16}
                 color="#ff3b30"
               >
-                Payment Failed
+                {paymentStatus === "cancelled" ? "Payment Cancelled" : "Payment Failed"}
               </ThemedText>
               <ThemedText
                 fontSize={14}

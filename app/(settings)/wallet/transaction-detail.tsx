@@ -55,7 +55,6 @@ const TransactionDetail = () => {
           router.back();
         }
       } catch (err: any) {
-        console.error("Failed to fetch transaction:", err);
         toast.error("Unable to load transaction details. Please try again.");
         router.back();
       } finally {

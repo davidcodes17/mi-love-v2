@@ -6,6 +6,7 @@ import NativeButton from "@/components/ui/native-button";
 import { useSendOtp, useVerifyOtp } from "@/hooks/auth-hooks.hooks";
 import { toast } from "@/components/lib/toast-manager";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { AUTH_STORAGE_KEYS } from "@/services/auth-service.service";
 
 interface Step2Props {
   values: any;
@@ -53,7 +54,7 @@ const Step2 = ({
       setResendLoading(true);
       const response = await useSendOtp({
         email: values.email,
-        exsists: false,
+        exsists: true,
       });
 
       if (response?.message) {
@@ -90,7 +91,10 @@ const Step2 = ({
           visibilityTime: 2000,
         });
 
-        await AsyncStorage.setItem("token", response?.token);
+        await AsyncStorage.setItem(
+          AUTH_STORAGE_KEYS.signupToken,
+          response.token
+        );
 
         onNext();
       } else {
@@ -102,7 +106,6 @@ const Step2 = ({
         });
       }
     } catch (error: any) {
-      console.error("OTP Verification Error:", error);
 
       toast.show({
         type: "error",

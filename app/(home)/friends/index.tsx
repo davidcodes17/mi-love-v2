@@ -26,7 +26,6 @@ export default function Page() {
       const response = await useGetAllFriends({ filterBy });
       setFriends(response || null);
     } catch (error) {
-      console.error("Failed to fetch friends:", error);
     } finally {
       if (isRefresh) {
         setRefreshing(false);

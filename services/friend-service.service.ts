@@ -18,7 +18,6 @@ export const getAllFriends = async ({
     });
     return response.data;
   } catch (error: any) {
-    console.log(error);
     return error?.response?.data?.error;
   }
 };
@@ -29,7 +28,6 @@ export const addFriends = async ({ id }: { id: string }) => {
     });
     return response.data;
   } catch (error: any) {
-    console.log(error);
     return error?.response?.data?.error;
   }
 };
@@ -40,10 +38,38 @@ export const unFriend = async ({ id }: { id: string }) => {
     });
     return response.data;
   } catch (error: any) {
-    console.log(error);
     return error?.response?.data?.error;
   }
 };
+export const blockFriend = async ({
+  id,
+  reason,
+}: {
+  id: string;
+  reason: string;
+}) => {
+  try {
+    const response = await apiSecured.post("/friends/block", {
+      friendId: id,
+      reason,
+    });
+    return response.data;
+  } catch (error: any) {
+    return error?.response?.data || { message: "Unable to block this user" };
+  }
+};
+
+export const unblockFriend = async ({ id }: { id: string }) => {
+  try {
+    const response = await apiSecured.post("/friends/unblock", {
+      friendId: id,
+    });
+    return response.data;
+  } catch (error: any) {
+    return error?.response?.data || { message: "Unable to unblock this user" };
+  }
+};
+
 export const getSingleFriend = async ({ id }: { id: string }) => {
   try {
     // Skip success toast for GET requests (silent operation)
@@ -52,7 +78,6 @@ export const getSingleFriend = async ({ id }: { id: string }) => {
     });
     return response.data;
   } catch (error: any) {
-    console.log(error);
     return error?.response?.data?.error;
   }
 };

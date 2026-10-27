@@ -1,43 +1,41 @@
 import React, { useEffect } from "react";
-import { View, StyleSheet, Image, ActivityIndicator } from "react-native";
+import { StyleSheet, View, Text } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
   withTiming,
+  withSequence,
   Easing,
+  FadeIn,
 } from "react-native-reanimated";
-import ThemedView, { ThemedText } from "@/components/ui/themed-view";
-import { COLORS } from "@/config/theme";
 
 interface LoadingScreenProps {
   message?: string;
 }
 
-export default function LoadingScreen({ message = "Loading..." }: LoadingScreenProps) {
+/** Mi Love brand splash shown while the app restores a session. */
+export default function LoadingScreen({
+  message = "",
+}: LoadingScreenProps) {
   const scale = useSharedValue(1);
-  const opacity = useSharedValue(0.5);
 
   useEffect(() => {
-    // Pulse animation for logo
     scale.value = withRepeat(
-      withTiming(1.1, {
-        duration: 1000,
-        easing: Easing.inOut(Easing.ease),
-      }),
+      withSequence(
+        withTiming(1.06, {
+          duration: 900,
+          easing: Easing.inOut(Easing.ease),
+        }),
+        withTiming(1, {
+          duration: 900,
+          easing: Easing.inOut(Easing.ease),
+        })
+      ),
       -1,
-      true
-    );
-
-    // Fade animation for loading text
-    opacity.value = withRepeat(
-      withTiming(1, {
-        duration: 1000,
-        easing: Easing.inOut(Easing.ease),
-      }),
-      -1,
-      true
+      false
     );
   }, []);
 
@@ -45,55 +43,80 @@ export default function LoadingScreen({ message = "Loading..." }: LoadingScreenP
     transform: [{ scale: scale.value }],
   }));
 
-  const textAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
-
   return (
-    <LinearGradient
-      colors={[COLORS.primary, COLORS.primary + "EE", "#fff"]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.container}
-    >
-      <View style={styles.content}>
+    <View style={styles.container}>
+      <View style={styles.center}>
         <Animated.View style={animatedStyle}>
-          <Image
-            source={require("@/assets/images/onboarding/icon.png")}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+          <LinearGradient
+            colors={["#F07B68", "#B8325B"]}
+            start={{ x: 0, y: 1 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.glyph}
+          >
+            <View style={styles.glyphInner}>
+              <Ionicons name="heart" size={40} color="#fff" />
+            </View>
+          </LinearGradient>
         </Animated.View>
-        
-        <Animated.View style={[styles.loadingContainer, textAnimatedStyle]}>
-          <ActivityIndicator size="large" color="#fff" />
-          <ThemedText fontSize={16} color="#fff" marginTop={20}>
+        {!!message && (
+          <Animated.Text entering={FadeIn} style={styles.message}>
             {message}
-          </ThemedText>
-        </Animated.View>
+          </Animated.Text>
+        )}
       </View>
-    </LinearGradient>
+
+      <View style={styles.footer}>
+        <Text style={styles.from}>from</Text>
+        <Text style={styles.brand}>mi love</Text>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: "#fff9f5",
   },
-  content: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logo: {
-    width: 120,
-    height: 120,
-    marginBottom: 40,
-  },
-  loadingContainer: {
+  center: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+  glyph: {
+    width: 78,
+    height: 78,
+    borderRadius: 26,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 2,
+  },
+  glyphInner: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  message: {
+    marginTop: 28,
+    fontSize: 14,
+    color: "#806f78",
+  },
+  footer: {
+    alignItems: "center",
+    paddingBottom: 48,
+    gap: 2,
+  },
+  from: {
+    fontSize: 12,
+    color: "#806f78",
+  },
+  brand: {
+    fontFamily: "Quicksand_700Bold",
+    fontSize: 22,
+    fontWeight: "700",
+    letterSpacing: -0.8,
+    color: "#281a22",
   },
 });
-

@@ -1,6 +1,5 @@
-import { View, Text, TextProps, useColorScheme } from "react-native";
+import { StyleSheet, Text, TextProps, TextStyle } from "react-native";
 import React from "react";
-import THEME, { THEME_KEY } from "@/config/theme";
 import useTheme from "@/hooks/use-theme";
 
 export type NativeTextWeight =
@@ -16,31 +15,43 @@ export interface NativeTextProps extends TextProps {
 const NativeText = (props: NativeTextProps) => {
   const { children, style, weight, ...rest } = props;
   const theme = useTheme();
-  const color = theme.colors.white;
-  let fontFamily: string;
-  switch (weight) {
+  const color = theme.colors.text;
+  const requestedWeight = weight || StyleSheet.flatten(style)?.fontWeight;
+  let fontFamily = "Quicksand_400Regular";
+  let fontWeight: TextStyle["fontWeight"];
+  switch (requestedWeight) {
     case "light":
+    case "300":
       fontFamily = "Quicksand_300Light";
+      fontWeight = "300";
       break;
 
     case "regular":
+    case "400":
       fontFamily = "Quicksand_400Regular";
+      fontWeight = "400";
       break;
 
     case "medium":
+    case "500":
       fontFamily = "Quicksand_500Medium";
+      fontWeight = "500";
       break;
 
     case "semibold":
+    case "600":
       fontFamily = "Quicksand_600SemiBold";
+      fontWeight = "600";
       break;
 
     case "bold":
+    case "700":
       fontFamily = "Quicksand_700Bold";
+      fontWeight = "700";
       break;
 
     default:
-      fontFamily = "Quicksand_500Medium";
+      fontWeight = "400";
       break;
   }
   return (
@@ -48,6 +59,7 @@ const NativeText = (props: NativeTextProps) => {
       style={[
         {
           fontFamily,
+          fontWeight,
           color,
         },
         style,

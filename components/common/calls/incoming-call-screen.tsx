@@ -23,10 +23,9 @@ export const IncomingCallScreen = () => {
   const { user } = useUserStore();
 
   // Get call type from custom data
-  const callType = call?.custom?.type || "audio";
+  const callType = call?.state.custom?.type || "audio";
   const isAudioCall = callType === "audio";
-  const callerId = call?.createdBy?.id;
-  const callerName = call?.createdBy?.name || "Unknown";
+  const callerName = call?.state.createdBy?.name || "Unknown";
 
   // Pulse animation for incoming call
   useEffect(() => {
@@ -65,7 +64,6 @@ export const IncomingCallScreen = () => {
         // Small delay to ensure permissions are fully processed
         await new Promise(resolve => setTimeout(resolve, 200));
       } catch (permError) {
-        console.log("Permission request failed, proceeding anyway - WebRTC will handle it:", permError);
         // Continue anyway - WebRTC SDK will request permissions when needed
       }
 
@@ -75,7 +73,6 @@ export const IncomingCallScreen = () => {
         router.replace(`/video-call?channel=${call.id}&callType=${callType}`);
       }, 500);
     } catch (error) {
-      console.error("Error accepting call:", error);
       toast.error("Failed to accept call");
     }
   };
@@ -86,7 +83,6 @@ export const IncomingCallScreen = () => {
       await call.reject();
       // Call will be automatically cleaned up
     } catch (error) {
-      console.error("Error rejecting call:", error);
     }
   };
 
@@ -107,8 +103,8 @@ export const IncomingCallScreen = () => {
           <View style={styles.avatarRing}>
             <Image
               source={
-                call.createdBy?.image
-                  ? { uri: generateURL({ url: call.createdBy.image }) }
+                call.state.createdBy?.image
+                  ? { uri: generateURL({ url: call.state.createdBy.image }) }
                   : require("@/assets/user.png")
               }
               defaultSource={require("@/assets/user.png")}

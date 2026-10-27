@@ -15,8 +15,12 @@ export const deleteAccountService = async ({
     });
     return response.data;
   } catch (error: any) {
-    console.log(error);
-    return error?.response?.data?.error;
+    return (
+      error?.response?.data || {
+        error: "Unable to delete account",
+        message: "Unable to delete account",
+      }
+    );
   }
 };
 
@@ -26,24 +30,12 @@ export const updateProfileService = async ({
   data: EditProfilePayload;
 }) => {
   try {
-    const response = await apiSecured.put(`/profile/me`, {
-      first_name: data.first_name,
-      last_name: data.last_name,
-      username: data.username,
-      country: null,
-      phone_number: data.phone_number,
-      emergency_contact: data.emergency_contact,
-      date_of_birth: null,
-      home_address: null,
-      gender: "",
-      profile_picture_id: data?.profile_picture_id,
-      bio: data.bio,
-      added_interests: data.added_interests,
-      removed_interests: data.removed_interests,
-    });
+    const payload = Object.fromEntries(
+      Object.entries(data).filter(([, value]) => value !== undefined)
+    );
+    const response = await apiSecured.put(`/profile/me`, payload);
     return response.data;
   } catch (error: any) {
-    console.error(error);
     return error?.response?.data;
   }
 };
@@ -53,7 +45,6 @@ export const initiatePanicButton = async ({ data }: { data: PanicButtonPayload }
     const response = await apiSecured.post("/emergencies/panic", data);
     return { success: true, data: response.data };
   } catch (error: any) {
-    console.log(error);
     const responseData = error?.response?.data;
     return { success: false, data: responseData, status: error?.response?.status };
   }

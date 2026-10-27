@@ -14,3 +14,8 @@ export interface FriendsListResponse {
     totalItems: number;
   };
 }
+
+export interface BlockFriendPayload {
+  id: string;
+  reason: string;
+}

@@ -1,67 +1,155 @@
-import React, { useEffect, useState } from "react";
-import { View, Image } from "react-native";
-import { Href, Link } from "expo-router";
-import ThemedView, { ThemedText } from "@/components/ui/themed-view";
-import { Heart } from "iconsax-react-native";
+import React from "react";
+import {
+  Dimensions,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { generateURL } from "@/utils/image-utils.utils";
 import { Post } from "@/types/post.types";
-import { useGetAllLikes } from "@/hooks/post-hooks.hooks";
-import { useUserProfileStore } from "@/hooks/auth-hooks.hooks";
 
 interface ProfileImageGridProps {
   posts: Post[];
-  linkBase: string;
+  emptyTitle?: string;
+  emptySubtitle?: string;
+  linkBase?: string;
 }
+
+const GAP = 1;
+const COLS = 3;
+const SCREEN_W = Dimensions.get("window").width;
+const TILE = (SCREEN_W - GAP * (COLS - 1)) / COLS;
+
+const isVideo = (file?: { url?: string; type?: string; thumbnailUrl?: string }) => {
+  const type = (file?.type || "").toLowerCase();
+  const url = (file?.url || "").toLowerCase();
+  return (
+    type.includes("video") ||
+    url.endsWith(".mp4") ||
+    url.endsWith(".mov") ||
+    url.endsWith(".webm")
+  );
+};
 
 const ProfileImageGrid: React.FC<ProfileImageGridProps> = ({
   posts,
-  linkBase,
+  emptyTitle = "No Posts Yet",
+  emptySubtitle = "When you share photos, they'll appear on your profile.",
 }) => {
-  const profile = useUserProfileStore((state) => state.profile);
+  if (!posts.length) {
+    return (
+      <View style={styles.empty}>
+        <View style={styles.emptyRing}>
+          <Ionicons name="camera-outline" size={40} color="#262626" />
+        </View>
+        <Text style={styles.emptyTitle}>{emptyTitle}</Text>
+        <Text style={styles.emptySubtitle}>{emptySubtitle}</Text>
+      </View>
+    );
+  }
 
   return (
-    <ThemedView
-      flexDirection="row"
-      flexWrap="wrap"
-      justifyContent="space-between"
-      marginTop={20}
-    >
-      {posts.map((post, idx) => (
-        <Link href={`${linkBase}/${idx}` as Href} asChild key={post.id}>
-          <View
-            style={{
-              width: "48%",
-              aspectRatio: 1,
-              marginBottom: 12,
-              borderRadius: 12,
-              overflow: "hidden",
-              backgroundColor: "#eee",
-              position: "relative",
-            }}
+    <View style={styles.grid}>
+      {posts.map((post) => {
+        const first = post.files?.[0];
+        const multi = (post.files?.length || 0) > 1;
+        const video = isVideo(first);
+        const uri =
+          video && first?.thumbnailUrl
+            ? generateURL({ url: first.thumbnailUrl })
+            : first?.url
+              ? generateURL({ url: first.url })
+              : null;
+
+        return (
+          <TouchableOpacity
+            key={post.id}
+            activeOpacity={0.9}
+            onPress={() =>
+              router.push({
+                pathname: "/post/[id]",
+                params: { id: post.id },
+              })
+            }
+            style={styles.tile}
           >
             <Image
-              source={{ uri: generateURL({ url: post.files[0]?.url }) }}
-              style={{ width: "100%", height: 200 }}
+              source={uri ? { uri } : require("@/assets/post.jpg")}
+              style={styles.image}
               resizeMode="cover"
             />
-            <ThemedView
-              position="absolute"
-              flexDirection="row"
-              left={20}
-              bottom={10}
-              alignItems="center"
-              gap={2}
-            >
-              <ThemedText color={"#fff"} fontSize={20}>
-                {post?._count?.likes || 0}
-              </ThemedText>
-              <Heart color={"white"} variant="Bold" size={20} />
-            </ThemedView>
-          </View>
-        </Link>
-      ))}
-    </ThemedView>
+            {multi && !video && (
+              <View style={styles.badge}>
+                <Ionicons name="copy-outline" size={14} color="#fff" />
+              </View>
+            )}
+            {video && (
+              <View style={styles.badge}>
+                <Ionicons name="play" size={14} color="#fff" />
+              </View>
+            )}
+          </TouchableOpacity>
+        );
+      })}
+    </View>
   );
 };
 
 export default ProfileImageGrid;
+
+const styles = StyleSheet.create({
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: GAP,
+    backgroundColor: "#fff",
+  },
+  tile: {
+    width: TILE,
+    height: TILE,
+    backgroundColor: "#efefef",
+    position: "relative",
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+  },
+  badge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+  },
+  empty: {
+    alignItems: "center",
+    paddingTop: 48,
+    paddingBottom: 64,
+    paddingHorizontal: 40,
+  },
+  emptyRing: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    borderWidth: 1.5,
+    borderColor: "#262626",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+  },
+  emptyTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#262626",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: "#8e8e8e",
+    textAlign: "center",
+    lineHeight: 18,
+  },
+});

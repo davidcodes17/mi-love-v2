@@ -3,7 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { toast } from "@/components/lib/toast-manager";
 
 // Configure the base URL for your API
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://1b67jdhr-9999.uks1.devtunnels.ms'
+// const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://mi-love-api.onrender.com'
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://ft0gnb2q-9999.uks1.devtunnels.ms'
 
 // Extend AxiosRequestConfig to include skipToast option
 declare module 'axios' {
@@ -159,11 +160,6 @@ apiSecured.interceptors.response.use(
       
       // Log server errors but don't show to users
       if ([500, 502, 503, 504].includes(status)) {
-        console.error(`Server error ${status}:`, {
-          url: config?.url,
-          method: method,
-          data: data,
-        });
         return Promise.reject(error);
       }
       
@@ -182,11 +178,8 @@ apiSecured.interceptors.response.use(
       
       // Handle unauthorized access - token expired or invalid
       if (status === 401) {
-        console.log('Unauthorized access - token expired or invalid');
         // Clear token and user data
-        AsyncStorage.removeItem('token').catch(err => 
-          console.error('Failed to clear token:', err)
-        );
+        AsyncStorage.removeItem('token').catch(() => {});
         // Note: User store clearing should be handled by the component that receives the error
         // This prevents navigation issues from the interceptor
       }
@@ -197,7 +190,6 @@ apiSecured.interceptors.response.use(
         toast.error('Unable to connect to the server. Please check your internet connection and try again.');
       } else {
         // For GET requests, just log the network error
-        console.warn('Network error for GET request:', config?.url);
       }
     } else {
       // Something else happened - only show for user actions

@@ -9,12 +9,10 @@ export const useGetProfileById = async ({ userId }: { userId: string }) => {
     
     // Track the profile view in background (don't wait for it)
     trackProfileViewService(userId).catch((err) => {
-      console.error("Failed to track profile view:", err);
     });
 
     return response;
   } catch (error) {
-    console.error("Error fetching profile:", error);
     throw error;
   }
 };
@@ -28,7 +26,6 @@ export const useTrackProfileView = async ({ userId }: { userId: string }) => {
     const response = await trackProfileViewService(userId);
     return response;
   } catch (error) {
-    console.error("Error tracking profile view:", error);
     return null;
   }
 };

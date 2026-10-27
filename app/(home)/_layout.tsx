@@ -13,10 +13,16 @@ const CustomBottomTabs = (props: BottomTabBarProps) => {
 export default function TabLayout() {
   return (
     <Tabs
-    screenOptions={{
-      headerShown: false,
-    }}
-    tabBar={CustomBottomTabs}
-  />
+      screenOptions={{ headerShown: false }}
+      tabBar={CustomBottomTabs}
+    >
+      <Tabs.Screen name="home" />
+      <Tabs.Screen name="explore" />
+      <Tabs.Screen name="add" />
+      <Tabs.Screen name="reels" />
+      <Tabs.Screen name="profile" />
+      <Tabs.Screen name="friends" options={{ href: null }} />
+      <Tabs.Screen name="inbox" options={{ href: null }} />
+    </Tabs>
   );
 }

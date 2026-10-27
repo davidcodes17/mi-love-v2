@@ -1,16 +1,13 @@
-import ThemedView, { ThemedText } from "@/components/ui/themed-view";
-import { COLORS } from "@/config/theme";
+import { ThemedText } from "@/components/ui/themed-view";
 import { generateURL } from "@/utils/image-utils.utils";
 import { router } from "expo-router";
-import { ArrowLeft2, Call, Video } from "iconsax-react-native";
-import { Image, StyleSheet, TouchableOpacity, View } from "react-native";
-import { useEffect, useRef, useState } from "react";
-import { useTheme } from "@react-navigation/native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useRef, useState } from "react";
 import { ChatMessage } from "@/types/chat.types";
 import { useUserStore } from "@/store/store";
 import toast from "@/components/lib/toast-manager";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { io, Socket } from "socket.io-client";
+import { getChatSocket } from "@/services/chat-socket.service";
+import { Ionicons } from "@expo/vector-icons";
 
 export const HeaderChat = ({
   profileUrl,
@@ -21,97 +18,32 @@ export const HeaderChat = ({
 }: {
   name?: string;
   profileUrl: string;
-  message: ChatMessage;
+  message?: ChatMessage;
   recipientId?: string;
   chatId?: string;
 }) => {
   const [imageError, setImageError] = useState(false);
-  const theme = useTheme();
   const { user } = useUserStore();
-
-  const socketRef = useRef<Socket | null>(null);
-
-  useEffect(() => {
-    let mounted = true;
-    const setup = async () => {
-      try {
-        const token = await AsyncStorage.getItem("token");
-        if (!token) {
-          console.warn("No token available for socket connection");
-          return;
-        }
-
-        const socket = io(
-          process.env.EXPO_PUBLIC_API_URL ||
-          "https://1b67jdhr-9999.uks1.devtunnels.ms/chat",
-          {
-            transports: ["websocket"],
-            extraHeaders: { Authorization: `Bearer ${token}` },
-            reconnectionAttempts: 5,
-            reconnectionDelay: 1000,
-            autoConnect: true,
-          }
-        );
-
-        socketRef.current = socket;
-
-        socket.on("connect", () => {
-          console.log("✅ Connected to chat server:", socket.id);
-        });
-
-        socket.on("error", (data: any) => {
-          toast.show({
-            title: data?.message || "Socket error",
-            type: "error",
-            duration: 2000,
-          });
-          if (data?.message === "Insufficient balance to send message.") {
-            toast.show({
-              title: "Insufficient balance to send message.",
-              type: "error",
-              duration: 4000,
-            });
-          }
-        });
-
-        socket.on("call", (data: any) => {
-          console.log("Call started", data);
-        });
-      } catch (err) {
-        console.warn("Socket setup failed", err);
-      }
-    };
-
-    setup();
-
-    return () => {
-      mounted = false;
-      const sock = socketRef.current;
-      if (sock) {
-        sock.off("private-message");
-        sock.off("connect");
-        sock.off("error");
-        sock.disconnect();
-      }
-      socketRef.current = null;
-    };
-  }, []);
+  const startingCallRef = useRef(false);
 
   const imageSource =
     imageError || !profileUrl
       ? require("@/assets/user.png")
       : { uri: generateURL({ url: profileUrl }) };
 
-  // Generate a deterministic 1:1 call ID
-  const generateCallId = (userId: string, recipientId: string) => {
-    return [userId, recipientId].sort().join("-");
-  };
+  const generateCallId = () =>
+    "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (value) => {
+      const random = Math.floor(Math.random() * 16);
+      const digit = value === "x" ? random : (random & 0x3) | 0x8;
+      return digit.toString(16);
+    });
 
-  const callId = generateCallId(user?.id || "", recipientId || "");
-
-  const handleCallPress = () => {
-    const sock = socketRef.current;
-    if (!sock || sock.disconnected) {
+  const handleCallPress = async (callType: "audio" | "video") => {
+    if (!recipientId || startingCallRef.current) return;
+    startingCallRef.current = true;
+    const sock = await getChatSocket();
+    if (!sock?.connected) {
+      startingCallRef.current = false;
       toast.show({
         title: "Not connected to chat server.",
         type: "error",
@@ -120,106 +52,143 @@ export const HeaderChat = ({
       return;
     }
 
-    sock.emit(
-      "call",
-      {
-        toUserId: recipientId,
-        callId: callId,
-      },
-      // optional ack callback
-      (response: any) => {
-        console.log("Call started", response);
-      }
-    );
-    console.log("Call started ......");
+    const callId = generateCallId();
+    sock.emit("call", {
+      toUserId: recipientId,
+      fromUserId: user?.id,
+      callId,
+      callType,
+      chatId,
+    });
     router.push({
       pathname: "/outgoing-call",
       params: {
         id: callId,
-        recipientId: recipientId,
+        recipientId,
         mode: "create",
-        chatId: chatId,
-        profileUrl: profileUrl,
-        name: name,
+        chatId,
+        profileUrl,
+        name,
+        callType,
       },
     } as any);
+    startingCallRef.current = false;
+  };
+
+  const openProfile = () => {
+    if (!recipientId) return;
+    router.push(`/(friends)/view-friends?id=${recipientId}`);
   };
 
   return (
-    <ThemedView
-      flexDirection="row"
-      alignItems="center"
-      justifyContent="space-between"
-      paddingHorizontal={12}
-      paddingVertical={10}
-      borderBottomWidth={0.2}
-      borderBottomLeftRadius={20}
-      borderBottomRightRadius={20}
-      borderBottomColor="#eee"
-    >
-      {/* Left: Back + User Info */}
-      <ThemedView flexDirection="row" alignItems="center" flexShrink={1}>
+    <View style={styles.header}>
+      <View style={styles.left}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={10} style={styles.back}>
+          <Ionicons name="chevron-back" size={28} color="#262626" />
+        </TouchableOpacity>
+
         <TouchableOpacity
-          onPress={() => router.back()}
-          style={{ marginRight: 10 }}
+          style={styles.user}
+          activeOpacity={0.7}
+          onPress={openProfile}
         >
-          <ArrowLeft2 size={28} color={theme.colors.text} />
+          <Image
+            source={imageSource}
+            onError={() => setImageError(true)}
+            style={styles.avatar}
+          />
+          <View style={styles.meta}>
+            <Text style={styles.name} numberOfLines={1}>
+              {name || "Unknown"}
+            </Text>
+            <Text style={styles.subtitle} numberOfLines={1}>
+              {message?.updated_at
+                ? `Active ${new Date(message.updated_at).toLocaleTimeString([], {
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}`
+                : "Instagram"}
+            </Text>
+          </View>
         </TouchableOpacity>
+      </View>
 
-        <Image
-          source={imageSource}
-          onError={() => setImageError(true)}
-          style={styles.userImage}
-        />
-
-        <ThemedView marginLeft={10}>
-          <ThemedText fontSize={16} fontWeight="600">
-            {name || "Unknown User"}
-          </ThemedText>
-          {message?.updated_at && (
-            <ThemedText fontSize={12} color="#666">
-              Last seen{" "}
-              {new Date(message.updated_at).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </ThemedText>
-          )}
-        </ThemedView>
-      </ThemedView>
-
-      {/* Right: Call & Video */}
-      <ThemedView flexDirection="row" alignItems="center" gap={10}>
-        {/* <TouchableOpacity onPress={handleCallPress}> */}
-        <TouchableOpacity onPress={() => {
-          toast.show({
-            title: "Available soon in v2",
-            type: "error",
-            duration: 2000,
-          });
-        }}>
-          <Call color={COLORS.primary} size={28} variant="Broken" />
+      <View style={styles.actions}>
+        <TouchableOpacity
+          onPress={() => handleCallPress("audio")}
+          hitSlop={8}
+          style={styles.actionBtn}
+        >
+          <Ionicons name="call-outline" size={24} color="#262626" />
         </TouchableOpacity>
-        {/* <TouchableOpacity onPress={handleCallPress}> */}
-        <TouchableOpacity onPress={() => {
-          toast.show({
-            title: "Available soon in v2",
-            type: "error",
-            duration: 2000,
-          });
-        }}>
-          <Video color={COLORS.primary} size={28} variant="Broken" />
+        <TouchableOpacity
+          onPress={() => handleCallPress("video")}
+          hitSlop={8}
+          style={styles.actionBtn}
+        >
+          <Ionicons name="videocam-outline" size={26} color="#262626" />
         </TouchableOpacity>
-      </ThemedView>
-    </ThemedView>
+      </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  userImage: {
-    width: 40,
+  header: {
+    minHeight: 56,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#fff",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#dbdbdb",
+  },
+  left: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    marginRight: 8,
+  },
+  back: {
+    width: 36,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "#ddd",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  user: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexShrink: 1,
+    gap: 10,
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#efefef",
+  },
+  meta: {
+    flexShrink: 1,
+  },
+  name: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#262626",
+  },
+  subtitle: {
+    fontSize: 12,
+    color: "#8e8e8e",
+    marginTop: 1,
+  },
+  actions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingRight: 8,
+  },
+  actionBtn: {
+    padding: 2,
   },
 });

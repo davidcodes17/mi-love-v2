@@ -38,10 +38,6 @@ export async function requestCallPermissions(
         microphoneGranted =
           micPermission === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
-        console.log(
-          "Error requesting microphone permission, WebRTC will handle it:",
-          err,
-        );
         // For iOS or if permission request fails, assume granted and let WebRTC handle it
         microphoneGranted = true;
       }
@@ -51,10 +47,6 @@ export async function requestCallPermissions(
         // First check current permission status
         try {
           const currentPermission = await Audio.Audio.getPermissionsAsync();
-          console.log(
-            "Current microphone permission status:",
-            currentPermission.status,
-          );
 
           if (currentPermission.status === "granted") {
             microphoneGranted = true;
@@ -62,39 +54,17 @@ export async function requestCallPermissions(
             // Request permission if not determined
             const audioPermission = await Audio.Audio.requestPermissionsAsync();
             microphoneGranted = audioPermission.status === "granted";
-            console.log(
-              "Requested microphone permission, status:",
-              audioPermission.status,
-              "granted:",
-              microphoneGranted,
-            );
           } else {
             // Denied or restricted
             microphoneGranted = false;
-            console.warn("Microphone permission is denied or restricted");
           }
         } catch (getError: any) {
           // If getPermissionsAsync fails, try requestPermissionsAsync directly
-          console.log(
-            "getPermissionsAsync failed, trying requestPermissionsAsync directly:",
-            getError?.message,
-          );
           const audioPermission = await Audio.Audio.requestPermissionsAsync();
           microphoneGranted = audioPermission.status === "granted";
-          console.log(
-            "Requested microphone permission directly, status:",
-            audioPermission.status,
-            "granted:",
-            microphoneGranted,
-          );
         }
       } catch (err: any) {
         const errorMessage = err?.message || String(err);
-        console.error(
-          "Error requesting microphone permission on iOS:",
-          errorMessage,
-        );
-        console.error("Full error object:", JSON.stringify(err, null, 2));
 
         // If expo-av fails, check if it's a native module error
         if (
@@ -104,15 +74,9 @@ export async function requestCallPermissions(
           err?.code === "ERR_MODULE_NOT_FOUND" ||
           errorMessage.includes("expo-av")
         ) {
-          console.warn(
-            "expo-av native module not available, WebRTC will handle permissions",
-          );
           microphoneGranted = true; // Let WebRTC handle it
         } else {
           // For other errors, assume not granted
-          console.warn(
-            "Microphone permission request failed, assuming not granted",
-          );
           microphoneGranted = false;
         }
       }
@@ -133,7 +97,6 @@ export async function requestCallPermissions(
         );
         cameraGranted = cameraPermission === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
-        console.error("Error requesting camera permission on Android:", err);
         cameraGranted = false;
       }
     } else {
@@ -143,10 +106,6 @@ export async function requestCallPermissions(
         try {
           const currentPermission =
             await Camera.Camera.getCameraPermissionsAsync();
-          console.log(
-            "Current camera permission status:",
-            currentPermission.status,
-          );
 
           if (currentPermission.status === "granted") {
             cameraGranted = true;
@@ -155,40 +114,18 @@ export async function requestCallPermissions(
             const cameraPermission =
               await Camera.Camera.requestCameraPermissionsAsync();
             cameraGranted = cameraPermission.status === "granted";
-            console.log(
-              "Requested camera permission, status:",
-              cameraPermission.status,
-              "granted:",
-              cameraGranted,
-            );
           } else {
             // Denied or restricted
             cameraGranted = false;
-            console.warn("Camera permission is denied or restricted");
           }
         } catch (getError: any) {
           // If getCameraPermissionsAsync fails, try requestCameraPermissionsAsync directly
-          console.log(
-            "getCameraPermissionsAsync failed, trying requestCameraPermissionsAsync directly:",
-            getError?.message,
-          );
           const cameraPermission =
             await Camera.Camera.requestCameraPermissionsAsync();
           cameraGranted = cameraPermission.status === "granted";
-          console.log(
-            "Requested camera permission directly, status:",
-            cameraPermission.status,
-            "granted:",
-            cameraGranted,
-          );
         }
       } catch (err: any) {
         const errorMessage = err?.message || String(err);
-        console.error(
-          "Error requesting camera permission on iOS:",
-          errorMessage,
-        );
-        console.error("Full error object:", JSON.stringify(err, null, 2));
 
         // If expo-camera fails, check if it's a native module error
         if (
@@ -198,15 +135,9 @@ export async function requestCallPermissions(
           err?.code === "ERR_MODULE_NOT_FOUND" ||
           errorMessage.includes("expo-camera")
         ) {
-          console.warn(
-            "expo-camera native module not available, WebRTC will handle permissions",
-          );
           cameraGranted = true; // Let WebRTC handle it
         } else {
           // For other errors, assume not granted
-          console.warn(
-            "Camera permission request failed, assuming not granted",
-          );
           cameraGranted = false;
         }
       }
@@ -243,7 +174,6 @@ export async function requestCallPermissions(
       imageLibrary: false, // Default to false here as this function is for calls
     };
   } catch (error) {
-    console.error("Error requesting permissions:", error);
     return {
       camera: false,
       microphone: false,
@@ -281,7 +211,6 @@ export async function checkCallPermissions(): Promise<PermissionStatus> {
         );
         cameraGranted = cameraPermission;
       } catch (err) {
-        console.error("Error checking camera permission on Android:", err);
         cameraGranted = false;
       }
     } else {
@@ -295,7 +224,6 @@ export async function checkCallPermissions(): Promise<PermissionStatus> {
       imageLibrary: false, // Default to false here as this function is for calls
     };
   } catch (error) {
-    console.error("Error checking permissions:", error);
     return {
       camera: false,
       microphone: false,
@@ -328,10 +256,6 @@ export async function requestMicrophonePermission(
         );
         granted = micPermission === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
-        console.log(
-          "Error requesting microphone permission, WebRTC will handle it:",
-          err,
-        );
         // For iOS or if permission request fails, assume granted and let WebRTC handle it
         granted = true;
       }
@@ -341,10 +265,6 @@ export async function requestMicrophonePermission(
         // First check current permission status
         try {
           const currentPermission = await Audio.Audio.getPermissionsAsync();
-          console.log(
-            "Current microphone permission status:",
-            currentPermission.status,
-          );
 
           if (currentPermission.status === "granted") {
             granted = true;
@@ -352,39 +272,17 @@ export async function requestMicrophonePermission(
             // Request permission if not determined
             const audioPermission = await Audio.Audio.requestPermissionsAsync();
             granted = audioPermission.status === "granted";
-            console.log(
-              "Requested microphone permission, status:",
-              audioPermission.status,
-              "granted:",
-              granted,
-            );
           } else {
             // Denied or restricted
             granted = false;
-            console.warn("Microphone permission is denied or restricted");
           }
         } catch (getError: any) {
           // If getPermissionsAsync fails, try requestPermissionsAsync directly
-          console.log(
-            "getPermissionsAsync failed, trying requestPermissionsAsync directly:",
-            getError?.message,
-          );
           const audioPermission = await Audio.Audio.requestPermissionsAsync();
           granted = audioPermission.status === "granted";
-          console.log(
-            "Requested microphone permission directly, status:",
-            audioPermission.status,
-            "granted:",
-            granted,
-          );
         }
       } catch (err: any) {
         const errorMessage = err?.message || String(err);
-        console.error(
-          "Error requesting microphone permission on iOS:",
-          errorMessage,
-        );
-        console.error("Full error object:", JSON.stringify(err, null, 2));
 
         // If expo-av fails, check if it's a native module error
         if (
@@ -394,15 +292,9 @@ export async function requestMicrophonePermission(
           err?.code === "ERR_MODULE_NOT_FOUND" ||
           errorMessage.includes("expo-av")
         ) {
-          console.warn(
-            "expo-av native module not available, WebRTC will handle permissions",
-          );
           granted = true; // Let WebRTC handle it
         } else {
           // For other errors, assume not granted
-          console.warn(
-            "Microphone permission request failed, assuming not granted",
-          );
           granted = false;
         }
       }
@@ -430,7 +322,6 @@ export async function requestMicrophonePermission(
 
     return granted;
   } catch (error) {
-    console.error("Error requesting microphone permission:", error);
     // If all else fails, assume granted and let WebRTC handle it
     return true;
   }
@@ -459,7 +350,6 @@ export async function requestCameraPermission(
         );
         granted = cameraPermission === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
-        console.error("Error requesting camera permission on Android:", err);
         granted = false;
       }
     } else {
@@ -469,10 +359,6 @@ export async function requestCameraPermission(
         try {
           const currentPermission =
             await Camera.Camera.getCameraPermissionsAsync();
-          console.log(
-            "Current camera permission status:",
-            currentPermission.status,
-          );
 
           if (currentPermission.status === "granted") {
             granted = true;
@@ -481,40 +367,18 @@ export async function requestCameraPermission(
             const cameraPermission =
               await Camera.Camera.requestCameraPermissionsAsync();
             granted = cameraPermission.status === "granted";
-            console.log(
-              "Requested camera permission, status:",
-              cameraPermission.status,
-              "granted:",
-              granted,
-            );
           } else {
             // Denied or restricted
             granted = false;
-            console.warn("Camera permission is denied or restricted");
           }
         } catch (getError: any) {
           // If getCameraPermissionsAsync fails, try requestCameraPermissionsAsync directly
-          console.log(
-            "getCameraPermissionsAsync failed, trying requestCameraPermissionsAsync directly:",
-            getError?.message,
-          );
           const cameraPermission =
             await Camera.Camera.requestCameraPermissionsAsync();
           granted = cameraPermission.status === "granted";
-          console.log(
-            "Requested camera permission directly, status:",
-            cameraPermission.status,
-            "granted:",
-            granted,
-          );
         }
       } catch (err: any) {
         const errorMessage = err?.message || String(err);
-        console.error(
-          "Error requesting camera permission on iOS:",
-          errorMessage,
-        );
-        console.error("Full error object:", JSON.stringify(err, null, 2));
 
         // If expo-camera fails, check if it's a native module error
         if (
@@ -524,15 +388,9 @@ export async function requestCameraPermission(
           err?.code === "ERR_MODULE_NOT_FOUND" ||
           errorMessage.includes("expo-camera")
         ) {
-          console.warn(
-            "expo-camera native module not available, WebRTC will handle permissions",
-          );
           granted = true; // Let WebRTC handle it
         } else {
           // For other errors, assume not granted
-          console.warn(
-            "Camera permission request failed, assuming not granted",
-          );
           granted = false;
         }
       }
@@ -560,7 +418,6 @@ export async function requestCameraPermission(
 
     return granted;
   } catch (error) {
-    console.error("Error requesting camera permission:", error);
     return false;
   }
 }
@@ -581,10 +438,6 @@ export async function requestImageLibraryPermission(
       // First check current permission status
       const currentPermission =
         await ImagePicker.getMediaLibraryPermissionsAsync();
-      console.log(
-        "Current image library permission status:",
-        currentPermission.status,
-      );
 
       if (currentPermission.status === "granted") {
         granted = true;
@@ -596,18 +449,10 @@ export async function requestImageLibraryPermission(
         const permission =
           await ImagePicker.requestMediaLibraryPermissionsAsync();
         granted = permission.status === "granted";
-        console.log(
-          "Requested image library permission, status:",
-          permission.status,
-          "granted:",
-          granted,
-        );
       } else {
         granted = false;
-        console.warn("Image library permission is denied or restricted");
       }
     } catch (err: any) {
-      console.error("Error requesting image library permission:", err);
       granted = false;
     }
 
@@ -633,7 +478,6 @@ export async function requestImageLibraryPermission(
 
     return granted;
   } catch (error) {
-    console.error("Error in requestImageLibraryPermission:", error);
     return false;
   }
 }
@@ -646,7 +490,6 @@ export async function checkImageLibraryPermission(): Promise<boolean> {
     const permission = await ImagePicker.getMediaLibraryPermissionsAsync();
     return permission.status === "granted";
   } catch (error) {
-    console.error("Error checking image library permission:", error);
     return false;
   }
 }

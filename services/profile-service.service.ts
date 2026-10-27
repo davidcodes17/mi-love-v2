@@ -9,11 +9,9 @@ export const trackProfileViewService = async (userId: string) => {
     const response = await apiSecured.post(`/profile/${userId}/view`, {}, {
       skipToast: true, // Silent operation - don't show toast
     });
-    console.log("✅ Profile view tracked for user:", userId);
     return response.data;
   } catch (error: any) {
     // Silently fail - this shouldn't block profile loading
-    console.log("⚠️ Failed to track profile view:", error?.message);
     return null;
   }
 };
@@ -28,7 +26,6 @@ export const getProfileByIdService = async (userId: string) => {
     });
     return response.data;
   } catch (error: any) {
-    console.error("Failed to get profile:", error);
     return error?.response?.data || { error: "Failed to get profile" };
   }
 };

@@ -18,16 +18,17 @@ import { UserProfileR } from "@/types/auth.types";
 import { generateURL } from "@/utils/image-utils.utils";
 import { Call, VideoCircle, CallSlash } from "iconsax-react-native";
 import { BlurView } from "expo-blur";
+import { getChatSocket } from "@/services/chat-socket.service";
 
 const Ringing = () => {
-  const { id, recipientId, mode } = useLocalSearchParams<{
+  const { id, recipientId, mode, callType, chatId } = useLocalSearchParams<{
     id: string;
     recipientId: string;
     mode: "join" | "create";
+    callType?: "audio" | "video";
+    chatId?: string;
   }>();
 
-  console.log(recipientId,"SHSHSH")
-  console.log(id,"IDDDDDDDDDDDDD")
 
   const [user, setUser] = useState<UserProfileR | null>(null);
   const [imageError, setImageError] = useState(false);
@@ -47,9 +48,7 @@ const Ringing = () => {
         id: recipientId as string,
       });
       setUser(response?.data);
-      console.log(response, "Recipient Data");
     } catch (error) {
-      console.error("Error fetching profile:", error);
     } finally {
       setLoading(false);
     }
@@ -118,7 +117,13 @@ const Ringing = () => {
         duration: 100,
         useNativeDriver: true,
       }),
-    ]).start(() => {
+    ]).start(async () => {
+      const socket = await getChatSocket();
+      socket?.emit("call", {
+        action: "reject",
+        callId: id,
+        toUserId: recipientId,
+      });
       router.back();
     });
   };
@@ -135,10 +140,25 @@ const Ringing = () => {
         duration: 100,
         useNativeDriver: true,
       }),
-    ]).start(() => {
-      router.push(
-        `/outgoing-call?id=${id}&recipientId=${recipientId}&mode=join`
-      );
+    ]).start(async () => {
+      const socket = await getChatSocket();
+      socket?.emit("call", {
+        action: "accept",
+        callId: id,
+        toUserId: recipientId,
+      });
+      router.push({
+        pathname: "/outgoing-call",
+        params: {
+          id,
+          recipientId,
+          mode: "join",
+          callType: callType ?? "audio",
+          chatId,
+          name: `${user?.first_name ?? ""} ${user?.last_name ?? ""}`.trim(),
+          profileUrl: user?.profile_picture?.url,
+        },
+      });
     });
   };
 
@@ -170,9 +190,13 @@ const Ringing = () => {
             {/* Top Section - Call Type */}
             <View style={styles.topSection}>
               <View style={styles.callTypeBadge}>
-                <VideoCircle size={20} color="#fff" variant="Bold" />
+                {callType === "video" ? (
+                  <VideoCircle size={20} color="#fff" variant="Bold" />
+                ) : (
+                  <Call size={20} color="#fff" variant="Bold" />
+                )}
                 <ThemedText fontSize={14} color="white" weight="semibold" marginLeft={6}>
-                  Video Call
+                  {callType === "video" ? "Video Call" : "Audio Call"}
                 </ThemedText>
               </View>
             </View>

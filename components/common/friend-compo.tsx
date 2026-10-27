@@ -1,7 +1,7 @@
 import { Image, StyleSheet, TouchableOpacity } from "react-native";
 import React, { useState } from "react";
 import ThemedView, { ThemedText } from "../ui/themed-view";
-import { router, Href } from "expo-router";
+import { router } from "expo-router";
 import { COLORS } from "@/config/theme";
 import NativeButton from "../ui/native-button";
 import { UserProfileR } from "@/types/auth.types";
@@ -23,13 +23,11 @@ const FriendCompo = ({
     try {
       setLoading(true);
       const response = await useAddFriend({ id: user?.id });
-      console.log("✅ Add friend response:", response);
 
       if (response?.message === "Added to friends list") {
         setIsFriend(true);
       }
     } catch (err) {
-      console.error("❌ Add friend error:", err);
     } finally {
       setLoading(false);
     }
@@ -39,13 +37,11 @@ const FriendCompo = ({
     try {
       setLoading(true);
       const response = await useUnFriend({ id: user?.id });
-      console.log("✅ Unfriend response:", response);
 
       if (response?.message === "Removed from friends list") {
         setIsFriend(false);
       }
     } catch (err) {
-      console.error("❌ Unfriend error:", err);
     } finally {
       setLoading(false);
     }
@@ -54,7 +50,10 @@ const FriendCompo = ({
   return (
     <TouchableOpacity
       onPress={() => {
-        router.push(("/view-friends?id=" + user?.id) as Href);
+        router.push({
+          pathname: "/(friends)/view-friends",
+          params: { id: user.id },
+        });
       }}
     >
       <ThemedView

@@ -19,7 +19,6 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { BottomSheetModal, BottomSheetView } from "@gorhom/bottom-sheet";
 import { COLORS } from "@/config/theme";
-import { useUploadService } from "@/hooks/auth-hooks.hooks";
 import { toast } from "@/components/lib/toast-manager";
 
 interface Step7Props {
@@ -46,7 +45,7 @@ const Step7 = ({
   isLast,
 }: Step7Props) => {
   const [localImage, setLocalImage] = useState(values.profileImage || null);
-  const [loading, setLoading] = useState<boolean>(false);
+  const loading = false;
 
   // Bottom sheet refs
   const genderBottomSheetRef = useRef<BottomSheetModal>(null);
@@ -100,10 +99,9 @@ const Step7 = ({
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         setLocalImage(result.assets[0].uri);
-        // handleChange("profileImage")(result.assets[0].uri);
+        handleChange("profileImage")(result.assets[0].uri);
       }
     } catch (error) {
-      console.error("Image picker error:", error);
       toast.error("Error selecting image. Please try again.");
     } finally {
       imageBottomSheetRef.current?.dismiss();
@@ -124,35 +122,6 @@ const Step7 = ({
     genderBottomSheetRef.current?.dismiss();
   };
   // removed unused height constant since we use flex styling below
-
-  const uploadImage = async () => {
-    if (!localImage) {
-      toast.error("Please select an image first.");
-      return;
-    }
-
-    setLoading(true);
-    // Prepare file object for upload
-    const file = {
-      uri: localImage,
-      name: "profile.jpg",
-      type: "image/jpeg",
-    };
-    try {
-      const response = await useUploadService({ file });
-      console.log("Upload response:", response);
-      toast.success("Image uploaded successfully!");
-      // This ID
-      console.log(response?.data[0]?.id, "SJSJ");
-      handleChange("profileImage")(response?.data[0]?.id);
-      setLoading(false);
-    } catch (error) {
-      setLoading(false);
-      console.log("Upload error:", error);
-      toast.error("Image upload failed.");
-    }
-  };
-
 
   return (
     <KeyboardAvoidingView
@@ -226,18 +195,9 @@ const Step7 = ({
               >
                 {localImage ? "Change Photo" : "Tap to Add Photo"}
               </ThemedText>
-              {/* reserve space for upload button to avoid shifting next button */}
-          {localImage ? (
-                <NativeButton
-                  text={loading ? "Uploading..." : "Upload Photo"}
-                  onPress={uploadImage}
-                  isLoading={loading}
-                  style={{ marginTop: 12, paddingHorizontal: 30, borderRadius: 25 }}
-                  mode="fill"
-                />
-              ) : (
-                <View style={{ height: 50, marginTop: 12 }} />
-              )}
+              <ThemedText fontSize={12} color="#666" marginTop={8}>
+                Your photo will upload after your account is created.
+              </ThemedText>
             </TouchableOpacity>
           </ThemedView>
 
@@ -339,7 +299,6 @@ const Step7 = ({
           >
             <NativeButton
               onPress={() => {
-                console.log(values, "SK");
                 onNext();
               }}
               text={isLast ? "Submit" : "Next"}
@@ -407,6 +366,24 @@ const Step7 = ({
               color={values.gender === "female" ? "#7B61FF" : "#000"}
             >
               Female
+            </ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => handleGenderSelect("other")}
+            style={{
+              padding: 15,
+              borderWidth: 1,
+              borderColor: values.gender === "other" ? "#7B61FF" : "#ddd",
+              borderRadius: 10,
+              backgroundColor:
+                values.gender === "other" ? "#f0f0ff" : "transparent",
+            }}
+          >
+            <ThemedText
+              fontSize={16}
+              color={values.gender === "other" ? "#7B61FF" : "#000"}
+            >
+              Other
             </ThemedText>
           </TouchableOpacity>
         </BottomSheetView>

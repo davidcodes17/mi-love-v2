@@ -13,6 +13,10 @@ export interface Meta {
 export interface Chat {
   id: string;
   can_send_messages: boolean;
+  type?: "private" | "group";
+  isGroup?: boolean;
+  name?: string | null;
+  image?: ProfilePicture | null;
   created_at: string;
   updated_at: string;
   participants: Participant[];
@@ -50,7 +54,7 @@ export interface ProfilePicture {
 
 export interface Message {
   id: string;
-  type: "text" | "announcement" | "call" | "video-call"; // can extend with more types
+  type: ChatMessageType;
   content: string;
   edited: boolean;
   deleted: boolean;
@@ -61,6 +65,9 @@ export interface Message {
   chatId: string;
   user: Pick<User, "id" | "username"> | null;
   file: FileAttachment | null;
+  replyToMessageId?: string | null;
+  replyToMessage?: MessageQuote | null;
+  reactions?: MessageReaction[];
 }
 
 export interface FileAttachment {
@@ -97,7 +104,24 @@ export interface User {
 
 // types/chat.types.ts
 
-export type ChatMessageType = "text" | "announcement";
+export type ChatMessageType = "text" | "announcement" | "call" | "video-call";
+
+export interface MessageQuote {
+  id: string;
+  content: string;
+  deleted?: boolean;
+  userId?: string | null;
+  user?: Pick<User, "id" | "username"> | null;
+}
+
+export interface MessageReaction {
+  id?: string;
+  emoji: ReactionEmoji;
+  userId: string;
+  messageId?: string;
+}
+
+export type ReactionEmoji = "❤️" | "👍" | "😂" | "😮" | "😢" | "🙏";
 
 export interface ChatMessage {
   id: string;
@@ -116,6 +140,10 @@ export interface ChatMessage {
     avatar?: string;
   } | null;
   file?: any | null;
+  replyToMessageId?: string | null;
+  replyToMessage?: MessageQuote | null;
+  reactions?: MessageReaction[];
+  clientId?: string;
 }
 
 

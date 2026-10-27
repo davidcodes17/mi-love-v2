@@ -1,20 +1,16 @@
-import { FlatList, RefreshControl } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Animated, { FadeInUp } from "react-native-reanimated";
-import { useEffect } from "react";
-import globalStyles from "@/components/styles/global-styles";
+import { useEffect, useRef } from "react";
 import Header from "@/layouts/header";
-import ThemedView from "@/components/ui/themed-view";
 import Posts from "@/layouts/posts";
-import React, { useState, useCallback, useRef } from "react";
 import { useGetProfile, useUserProfileStore } from "@/hooks/auth-hooks.hooks";
 import { useUserStore } from "@/store/store";
 import { registerAndSendFcmToken } from "@/utils/fcm-token.utils";
+import useTheme from "@/hooks/use-theme";
 
 export default function HomeScreen() {
-  const components = ["header", "posts"];
-  const [refreshing, setRefreshing] = useState(false);
   const postsRef = useRef<any>(null);
+  const theme = useTheme();
   const setProfile = useUserProfileStore((state) => state.setProfile);
   const profile = useUserProfileStore((state) => state.profile);
   const { user, setUser } = useUserStore();
@@ -22,83 +18,48 @@ export default function HomeScreen() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const data = await useGetProfile(); // make sure this is an API call function
-        console.log("Fetched profile:", data?.data);
+        const data = await useGetProfile();
 
         if (data?.data) {
-          setProfile(data?.data); // Zustand store
-          setUser(data?.data); // Another store
+          setProfile(data?.data);
+          setUser(data?.data);
         }
       } catch (e) {
-        console.error("Error fetching profile:", e);
       }
     };
 
     fetchProfile();
-  }, []); // run once on mount
+  }, []);
 
-  // Register and send FCM token when user is authenticated
   useEffect(() => {
     if (profile || user) {
-      // User is authenticated, ensure FCM token is registered and sent
       registerAndSendFcmToken().catch((error) => {
-        console.error("Failed to register/send FCM token:", error);
       });
     }
   }, [profile, user]);
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-
-    try {
-      await Promise.all([postsRef.current?.refresh()]);
-    } catch (e) {
-      console.error("Failed to refresh:", e);
-    }
-
-    setRefreshing(false);
-  }, []);
-  const renderComponent = ({
-    item,
-    index,
-  }: {
-    item: string;
-    index: number;
-  }) => {
-    let Component;
-    let props = {};
-    switch (item) {
-      case "header":
-        Component = Header;
-        break;
-      case "posts":
-        Component = Posts;
-        props = { ref: postsRef };
-        break;
-      default:
-        return null;
-    }
-
-    return (
-      <Animated.View entering={FadeInUp.delay(index * 100)}>
-        <Component {...props} />
-      </Animated.View>
-    );
-  };
-
   return (
-    <SafeAreaView style={globalStyles.wrapper}>
-      <ThemedView paddingHorizontal={20} flex={1}>
-        <FlatList
-          data={components}
-          keyExtractor={(item) => item}
-          renderItem={renderComponent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        />
-      </ThemedView>
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.colors.background }]} edges={["top"]}>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <Header />
+        <View style={styles.feed}>
+          <Posts ref={postsRef} />
+        </View>
+      </View>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  feed: {
+    flex: 1,
+  },
+});

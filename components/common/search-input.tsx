@@ -1,24 +1,28 @@
 import React from "react";
 import { TextInput, TextInputProps, StyleSheet } from "react-native";
 import ThemedView from "../ui/themed-view";
-import { SearchFavorite } from "iconsax-react-native";
+import { Ionicons } from "@expo/vector-icons";
+import useTheme from "@/hooks/use-theme";
 
 const SearchInput = ({ ...rest }: TextInputProps) => {
+  const theme = useTheme();
+
   return (
     <ThemedView
-      borderColor={"#ddd"}
-      borderWidth={0.5}
+      backgroundColor={theme.colors.soft}
       paddingHorizontal={15}
-      gap={15}
-      borderRadius={10}
+      gap={10}
+      borderRadius={16}
       flexDirection="row"
       alignItems="center"
+      borderWidth={1}
+      borderColor={theme.colors.border}
     >
-      <SearchFavorite size={20} color="#ddd" />
+      <Ionicons name="search" size={18} color={theme.colors.muted} />
       <TextInput
-        style={styles.input}
+        style={[styles.input, { color: theme.colors.text }]}
         placeholder="Search..."
-        placeholderTextColor="#999"
+        placeholderTextColor={theme.colors.muted}
         {...rest}
       />
     </ThemedView>
@@ -30,10 +34,9 @@ export default SearchInput;
 const styles = StyleSheet.create({
   input: {
     flex: 1,
-    height: 50,
-    fontSize: 15,
-    borderRadius: 10,
-    fontFamily: "Quicksand_500Medium",
-    color: "#000", // Optional: set to your theme's default text color
+    height: 44,
+    fontSize: 16,
+    color: "#281a22",
+    paddingVertical: 0,
   },
 });

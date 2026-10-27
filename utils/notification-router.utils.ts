@@ -1,5 +1,25 @@
 import { Notification } from "@/services/notification-service.service";
 
+const parseObject = (value: unknown): Record<string, any> => {
+  if (!value) return {};
+  if (typeof value === "string") {
+    try {
+      return parseObject(JSON.parse(value));
+    } catch {
+      return {};
+    }
+  }
+  return typeof value === "object" ? (value as Record<string, any>) : {};
+};
+
+export const flattenNotificationPayload = (input: unknown) => {
+  const root = parseObject(input);
+  const notification = parseObject(root.notification);
+  const nested = parseObject(root.data);
+  const payload = parseObject(nested.data ?? nested.payload ?? root.payload);
+  return { ...notification, ...root, ...nested, ...payload };
+};
+
 /**
  * Handle notification navigation based on type
  * This function determines where to navigate when a user taps a notification
@@ -9,72 +29,70 @@ export const handleNotificationNavigation = (
   navigation: any
 ) => {
   try {
-    const { type, data = {} } = notification;
+    const data = flattenNotificationPayload(notification);
+    const type = String(
+      data.type ?? data.notificationType ?? notification.type ?? "system"
+    ).toLowerCase();
+    const push = (pathname: string, params?: Record<string, any>) =>
+      navigation.push
+        ? navigation.push({ pathname, params })
+        : navigation.navigate(pathname, params);
 
     switch (type) {
       case "message":
-        // Navigate to chat screen with specific chat ID
-        if (data?.chatId) {
-          navigation.navigate("Chat", {
-            chatId: data.chatId,
+      case "chat":
+        if (data.chatId || data.chat_id || data.id) {
+          push("/(chats)/chats", {
+            id: data.chatId ?? data.chat_id ?? data.id,
           });
         } else {
-          // Fallback to chats list
-          navigation.navigate("(chats)", {
-            screen: "chats",
-          });
+          push("/(home)/inbox");
         }
         break;
 
       case "social":
-        // Navigate to profile, friends, or post based on data
-        if (data?.userId) {
-          navigation.navigate("(friends)", {
-            screen: "view-friends",
-            params: { userId: data.userId },
+      case "like":
+      case "comment":
+        if (data.postId || data.post_id) {
+          push("/post/[id]", {
+            id: data.postId ?? data.post_id,
+            commentId: data.commentId ?? data.comment_id,
           });
-        } else if (data?.postId) {
-          navigation.navigate("(home)", {
-            screen: "home",
+        } else if (data.userId || data.user_id) {
+          push("/(friends)/view-friends", {
+            userId: data.userId ?? data.user_id,
           });
         } else {
-          // Fallback to friends screen
-          navigation.navigate("(friends)", {
-            screen: "view-friends",
-          });
+          push("/(notifications)/notifications");
         }
         break;
 
       case "system":
-        // Handle system notifications (rewards, wallet updates, etc.)
-        if (data?.action === "claim_reward") {
-          navigation.navigate("(settings)", {
-            screen: "wallet",
-            params: { claimReward: true },
+      case "wallet":
+      case "payment":
+        if (data.action === "claim_reward" || data.token) {
+          push("/(settings)/wallet", {
+            claimRewardToken: data.token,
+          });
+        } else if (data.transactionId || data.transaction_id || data.reference) {
+          push("/payment-callback", {
+            status: data.status ?? "pending",
+            transactionId: data.transactionId ?? data.transaction_id,
+            reference: data.reference,
           });
         } else {
-          navigation.navigate("(notifications)", {
-            screen: "notifications",
-          });
+          push("/(notifications)/notifications");
         }
         break;
 
       case "security":
-        // Navigate to security settings
-        navigation.navigate("(settings)", {
-          screen: "settings",
-          params: { tab: "security" },
-        });
+        push("/(notifications)/notifications");
         break;
 
       default:
-        // Default: show notifications screen
-        navigation.navigate("(notifications)", {
-          screen: "notifications",
-        });
+        push("/(notifications)/notifications");
     }
   } catch (error) {
-    console.error("Error navigating from notification:", error);
   }
 };
 
@@ -114,7 +132,6 @@ export const formatNotificationTime = (timestamp: string): string => {
 
     return date.toLocaleDateString();
   } catch (error) {
-    console.error("Error formatting notification time:", error);
     return "";
   }
 };

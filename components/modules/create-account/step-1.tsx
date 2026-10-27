@@ -1,10 +1,13 @@
 import React, { useState } from "react";
-import { View } from "react-native";
-import ThemedView, { ThemedText } from "@/components/ui/themed-view";
-import NativeButton from "@/components/ui/native-button";
+import ThemedView from "@/components/ui/themed-view";
 import InputField from "@/components/common/input-field";
-import { Sms } from "iconsax-react-native";
 import { useSendOtp } from "@/hooks/auth-hooks.hooks";
+import { toast } from "@/components/lib/toast-manager";
+import {
+  StepError,
+  StepNext,
+  StepTitle,
+} from "@/components/modules/create-account/step-chrome";
 
 interface Step1Props {
   values: any;
@@ -25,15 +28,19 @@ const Step1 = ({
   handleChange,
   handleBlur,
   onNext,
-  onBack,
-  isFirst,
-  isLast,
 }: Step1Props) => {
   const [loading, setLoading] = useState<boolean>(false);
+
   const handleNext = async () => {
+    if (!values.email?.trim() || errors.email) {
+      toast.error(errors.email || "Email is required");
+      return;
+    }
     setLoading(true);
-    const response = await useSendOtp({ email: values.email, exsists : false });
-    console.log(response);
+    const response = await useSendOtp({
+      email: values.email.trim(),
+      exsists: true,
+    });
     if (response?.message) {
       setLoading(false);
       onNext();
@@ -41,20 +48,16 @@ const Step1 = ({
       setLoading(false);
     }
   };
+
   return (
     <ThemedView>
-      <ThemedText marginTop={20} fontSize={30}>
-        What's your email address?
-      </ThemedText>
-      <ThemedText marginTop={7} color="#666">
-        We'll use your email to send account updates and help you recover access
-        if needed.
-      </ThemedText>
+      <StepTitle
+        title="What's your email?"
+        subtitle="Enter the email where you can be contacted. No one will see this on your profile."
+      />
 
       <InputField
-        label="Email Address"
-        icon={<Sms size={22} color="#ddd" style={{ marginRight: 8 }} />}
-        placeholder="Enter your email"
+        placeholder="Email"
         keyboardType="email-address"
         autoCapitalize="none"
         autoCorrect={false}
@@ -62,27 +65,12 @@ const Step1 = ({
         onChangeText={handleChange("email")}
         onBlur={() => handleBlur("email")}
       />
-      {touched.email && errors.email && (
-        <ThemedText color="red" marginTop={4}>
-          {errors.email}
-        </ThemedText>
-      )}
-      <ThemedView
-        width={"30%"}
-        justifyContent="flex-end"
-        alignSelf="flex-end"
-        marginTop={20}
-      >
-        <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
-          <NativeButton
-            onPress={handleNext}
-            text="Next"
-            mode="fill"
-            isLoading={loading}
-            style={{ borderRadius: 100, width: "100%" }}
-          />
-        </View>
-      </ThemedView>
+      <StepError
+        message={
+          touched.email && errors.email ? String(errors.email) : undefined
+        }
+      />
+      <StepNext onPress={handleNext} loading={loading} text="Next" />
     </ThemedView>
   );
 };

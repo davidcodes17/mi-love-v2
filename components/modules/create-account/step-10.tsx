@@ -27,10 +27,8 @@ const Step10 = ({
   isFirst,
   isLast,
 }: Step10Props) => {
-  console.log("object", values);
 
   useEffect(() => {
-    console.log("Login THIS");
   }, []);
 
   const height = Dimensions.get("window").height;

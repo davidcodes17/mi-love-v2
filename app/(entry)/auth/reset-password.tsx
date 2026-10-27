@@ -1,4 +1,4 @@
-import { StyleSheet } from "react-native";
+import { StyleSheet, View } from "react-native";
 import React, { useState } from "react";
 import { SafeAreaView } from "react-native";
 import ThemedView, { ThemedText } from "@/components/ui/themed-view";
@@ -10,11 +10,15 @@ import { useResetPasswordService } from "@/hooks/auth-hooks.hooks";
 import { toast } from "@/components/lib/toast-manager";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
+import { AUTH_STORAGE_KEYS } from "@/services/auth-service.service";
+import { Ionicons } from "@expo/vector-icons";
+import useTheme from "@/hooks/use-theme";
 
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const theme = useTheme();
 
   const handelResetPassword = async () => {
     if (!password || !confirmPassword) {
@@ -31,8 +35,8 @@ const ResetPassword = () => {
     }
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem("token");
-      const otp = await AsyncStorage.getItem("otp");
+      const token = await AsyncStorage.getItem(AUTH_STORAGE_KEYS.resetToken);
+      const otp = await AsyncStorage.getItem(AUTH_STORAGE_KEYS.resetOtp);
       if (!token || !otp) {
         toast.error("Missing verification data. Please try again.");
         setLoading(false);
@@ -45,13 +49,20 @@ const ResetPassword = () => {
           password,
         },
       });
-      if (response?.message == "Password reset successfully") {
+      const succeeded =
+        response?.success === true ||
+        response?.status === "success" ||
+        response?.message?.toLowerCase().includes("success");
+      if (succeeded) {
+        await AsyncStorage.multiRemove([
+          AUTH_STORAGE_KEYS.resetEmail,
+          AUTH_STORAGE_KEYS.resetOtp,
+          AUTH_STORAGE_KEYS.resetToken,
+        ]);
         toast.success("Password reset successful!");
-        router.push("/auth/login");
-      }
-      else{
-        toast.error("Password reset failed!");
-        router.push("/auth/login");
+        router.replace("/auth/login");
+      } else {
+        toast.error(response?.message || "Password reset failed!");
       }
     } catch (error: any) {
       toast.error(error?.message || "An error occurred. Please try again.");
@@ -62,19 +73,22 @@ const ResetPassword = () => {
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
-      <ThemedView padding={20} flex={1}>
+      <ThemedView padding={24} flex={1}>
         <BackButton />
-        <ThemedView marginTop={20}>
-          <ThemedText fontSize={30} weight="semibold">
+        <ThemedView marginTop={34}>
+          <View style={[styles.iconBadge, { backgroundColor: theme.colors.soft }]}>
+            <Ionicons name="lock-closed-outline" size={25} color={theme.colors.primary} />
+          </View>
+          <ThemedText fontSize={29} weight="bold">
             Reset Password
           </ThemedText>
-          <ThemedText fontSize={16} color="#666" marginTop={8} lineHeight={22}>
+          <ThemedText fontSize={14} color={theme.colors.muted} marginTop={8} lineHeight={22}>
             Enter your new password below.
           </ThemedText>
         </ThemedView>
         <ThemedView marginTop={40}>
           <InputField
-            icon={<Lock size={20} color="#ddd" />}
+            icon={<Lock size={20} color={theme.colors.primary} />}
             label="New Password"
             placeholder="Enter new password"
             secureTextEntry
@@ -82,7 +96,7 @@ const ResetPassword = () => {
             onChangeText={setPassword}
           />
           <InputField
-            icon={<Lock size={20} color="#ddd" />}
+            icon={<Lock size={20} color={theme.colors.primary} />}
             label="Confirm Password"
             placeholder="Re-enter new password"
             secureTextEntry
@@ -111,4 +125,13 @@ const ResetPassword = () => {
 
 export default ResetPassword;
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  iconBadge: {
+    width: 58,
+    height: 58,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 22,
+  },
+});
